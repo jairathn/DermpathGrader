@@ -1,5 +1,14 @@
 # Deployment
 
+## Short version
+
+Use **Streamlit Community Cloud**. It is free, deploys straight from this
+GitHub repo, keeps the API key server-side, and lets you restrict access
+to named email addresses. Five steps, in "Streamlit Community Cloud"
+below.
+
+GitHub Pages cannot host this, for reasons that are not worked around.
+
 ## GitHub Pages will not work
 
 GitHub Pages is a static file host. It serves HTML, CSS, JavaScript and
@@ -37,29 +46,40 @@ four JPEGs per case go to the Anthropic API when you grade a case; the
 
 Ordered by effort.
 
-### 1. Streamlit Community Cloud — easiest
+### 1. Streamlit Community Cloud — recommended
 
-Free, deploys directly from a GitHub repo, and has a secrets manager so
-the key stays server-side.
-
-1. Push the repo to GitHub.
-2. At share.streamlit.io, point it at the repo and `app.py`.
-3. Add the key under Settings → Secrets:
+1. Merge this branch and push to GitHub.
+2. Sign in at **share.streamlit.io** with the GitHub account that owns
+   the repo.
+3. **New app** → pick the repo, branch, and `app.py` as the main file.
+4. **Advanced settings → Secrets**, paste:
    ```toml
    ANTHROPIC_API_KEY = "sk-ant-..."
    ```
-4. `requirements.txt` is picked up automatically.
+5. Deploy. First boot takes a few minutes while dependencies install and
+   the embedding model downloads.
 
-Caveats worth knowing up front:
+Then **Settings → Sharing** and add your researchers' email addresses.
+Do this before sending anyone the link: apps are public by default.
 
-- Apps are public by default. The free tier allows restricting viewers to
-  named email addresses; do that before anything sensitive goes near it.
-- Roughly 1 GB of RAM and no persistent disk between restarts. The vector
-  stores must be committed to the repo, which they are — `chroma_db/` is
-  1.3 MB. `analysis_logs/` written by the app will not survive a restart,
-  so treat the hosted app as a demo and run batches locally.
-- The ONNX embedding model downloads on first run (~80 MB), which makes
-  the first request slow.
+Three things were fixed in this repo so that deploy works:
+
+- **SQLite.** Streamlit Cloud's image ships a SQLite older than the 3.35
+  ChromaDB requires, and you cannot apt-get a newer one there.
+  `sqlite_compat.py` swaps in `pysqlite3-binary` before ChromaDB is
+  imported. It no-ops locally.
+- **No persistent disk.** Anything written to `analysis_logs/` is lost on
+  restart. The sidebar now has a **Download all case logs (.zip)** button,
+  and each result has its own download. Tell researchers to download
+  before they close the tab. For a real batch run, use `run_tests.py`
+  locally, where the logs persist.
+- **Vector stores are committed** (`chroma_db/` 1.3 MB, `chroma_db_nevi/`
+  3.1 MB) because there is no disk to build them onto at deploy time. The
+  app now shows an explanation instead of a traceback if one is absent.
+
+Remaining limits: roughly 1 GB of RAM, and the app sleeps after inactivity
+and takes ~30 seconds to wake. Fine for interactive use by a handful of
+researchers; not a batch runner.
 
 ### 2. Hugging Face Spaces
 

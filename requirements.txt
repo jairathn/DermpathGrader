@@ -15,8 +15,15 @@ numpy
 # is the current home of RecursiveCharacterTextSplitter; the langchain
 # metapackage is not needed.
 langchain-community
+langchain-core
 langchain-text-splitters
 pypdf
+
+# Managed hosts (Streamlit Community Cloud among them) ship a SQLite
+# older than the 3.35 chromadb requires, and it cannot be apt-installed
+# there. sqlite_compat.py swaps this in at import time. Harmless
+# locally: the shim only activates when the system SQLite is too old.
+pysqlite3-binary; sys_platform == "linux"
 
 # Optional: only extract_tiles.py needs it, for reading .svs whole-slide
 # images. Also requires the OpenSlide C library, which is a system

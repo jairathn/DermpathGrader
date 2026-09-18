@@ -138,18 +138,25 @@ separating III from IV), `ulceration_present` and `mitoses_per_mm2`.
    none.
 
 2. **The vector stores were lost in the migration and rebuilt.**
-   `chroma_db/` and `chroma_db_nevi/` did not come across. They are
-   rebuilt from the PDFs in `attached_assets/`.
-   *The CSCC rebuild reproduces exactly*: 72 chunks, matching
-   `chunk_id_fingerprint_sha256`, and all 7 subquery top-1 distances
-   identical to the manifest, including the 0.5462 reference. Seven of
-   17 chunks differ by <0.5% of characters (a newer pypdf), which moves
-   `corpus_fingerprint_sha256` but not the retrieval results.
-   **The nevus store cannot be rebuilt yet**: `Nevi 2025_1749902667337.pdf`
-   (20 pp, 96 of the 294 chunks) is still missing. Run
-   `python build_vector_stores.py --check` for current status.
-   `build_vector_stores.py` refuses to overwrite an existing store
-   without `--force`.
+   Both are now present and both pathways run.
+   - **CSCC reproduces exactly**: 72 chunks, matching
+     `chunk_id_fingerprint_sha256`, and all 7 subquery top-1 distances
+     identical to the manifest, including the 0.5462 reference. Cite the
+     published CSCC distances without qualification.
+     See `chroma_db/PROVENANCE.md`.
+   - **Nevus does not.** One of the four source PDFs
+     (`Nevi 2025_1749902667337.pdf`, 96 of the original 294 chunks) was
+     lost, and the article text was supplied instead. It chunks to 53
+     rather than 96, which shifts every chunk ID after it, so the nevus
+     distances do not match the manifest and the 0.4066 reference does
+     not reproduce. Store total is 251 chunks. Retrieval works and
+     grading is unaffected — the MPATH-Dx class definitions and grading
+     criteria live in the prompt scaffold, not in retrieved text — but
+     no nevus retrieval distance may be pooled with a pre-migration one.
+     See `chroma_db_nevi/PROVENANCE.md`.
+
+   `build_vector_stores.py --check` reports current source status and
+   refuses to overwrite a store without `--force`.
 
 3. ~~Nevus `max_tokens` is 1000.~~ It was 1500, and is now 8000 against a
    larger schema, streamed. Do not lower it.

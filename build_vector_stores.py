@@ -119,10 +119,12 @@ def build(pathway: str, force: bool) -> None:
                 f"you intend that, and note the before/after values.")
         shutil.rmtree(store_dir)
 
-    missing = [f for f in SOURCES[pathway] if not pathlib.Path(f).exists()]
+    missing = [f for f in SOURCES[pathway]
+               if not pathlib.Path(f).exists()
+               and not pathlib.Path(f).with_suffix(".txt").exists()]
     if missing:
-        sys.exit(f"cannot build {pathway}: missing source PDF(s):\n  " +
-                 "\n  ".join(missing))
+        sys.exit(f"cannot build {pathway}: missing source(s), with no .txt "
+                 f"substitute either:\n  " + "\n  ".join(missing))
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=config.CHUNK_SIZE,
@@ -134,13 +136,27 @@ def build(pathway: str, force: bool) -> None:
     texts, metadatas, ids = [], [], []
     doc_id = 0
     per_file = {}
+    substituted = []
     for rel in SOURCES[pathway]:
-        docs = PyPDFLoader(rel).load()
+        path = pathlib.Path(rel)
+        if path.exists():
+            docs = PyPDFLoader(rel).load()
+        else:
+            # Text substitute: the original PDF was lost and the article
+            # text was supplied instead. Chunk boundaries will NOT match
+            # the PDF's, so retrieval distances shift. Recorded in the
+            # metadata and reported at the end so it cannot pass silently.
+            text_path = path.with_suffix(".txt")
+            from langchain_core.documents import Document
+            docs = [Document(page_content=text_path.read_text(encoding="utf-8"),
+                             metadata={"page": 0})]
+            substituted.append(path.name)
         chunks = splitter.split_documents(docs)
         for chunk in chunks:
             texts.append(chunk.page_content)
             metadatas.append({"source": rel,
-                              "page": chunk.metadata.get("page", 0)})
+                              "page": chunk.metadata.get("page", 0),
+                              "source_substituted": path.name in substituted})
             ids.append(f"{ID_PREFIX[pathway]}_{doc_id}")
             doc_id += 1
         per_file[pathlib.Path(rel).name] = len(chunks)
@@ -158,8 +174,15 @@ def build(pathway: str, force: bool) -> None:
     for name, count in per_file.items():
         print(f"  {count:4} {name}")
     print(f"  chunk_id_fingerprint_sha256 = {fingerprint}")
-    print("  Retrieval distances have changed. Re-run make_manifest.py and "
-          "record the new values.")
+    if substituted:
+        print("\n  TEXT SUBSTITUTE USED for: " + ", ".join(substituted))
+        print("  The original PDF was lost and the article text was supplied "
+              "instead.\n  Chunk boundaries differ from the PDF's, so every "
+              "chunk id after the\n  substituted document shifts and the "
+              "retrieval distances for this\n  pathway will NOT match the "
+              "pre-migration manifest. Say so anywhere\n  the nevus numbers "
+              "are reported.")
+    print("\n  Re-run make_manifest.py and record the new values.")
 
 
 def main() -> None:

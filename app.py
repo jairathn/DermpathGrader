@@ -18,8 +18,11 @@ same case graded in batch send byte-identical images.
 
 from __future__ import annotations
 
+import datetime
+import io
 import json
 import pathlib
+import zipfile
 
 import streamlit as st
 
@@ -45,6 +48,36 @@ def _manifest_session_id() -> str:
 
 def _next_rep(pathway: str, case_id: str) -> int:
     return CaseLogger(pathway, case_id, 1, "probe").next_free_replicate()
+
+
+def store_ready(pathway: str) -> bool:
+    """Is this pathway's vector store present on disk?
+
+    Checked before offering the Initialize button, so a missing store
+    produces an explanation rather than a traceback in the researcher's
+    face.
+    """
+    directory = pathlib.Path(config.CHROMA_DIR[pathway])
+    return directory.exists() and any(directory.iterdir())
+
+
+def collect_logs() -> list[pathlib.Path]:
+    root = pathlib.Path(config.LOG_ROOT)
+    return sorted(root.glob("*/*.json")) if root.exists() else []
+
+
+def logs_zip() -> bytes:
+    """Every case log written in this session, as one archive.
+
+    Managed hosts give the app no persistent disk: a restart wipes
+    analysis_logs/. Downloading is what makes a hosted session's work
+    survivable, so this sits in the sidebar rather than being buried.
+    """
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+        for path in collect_logs():
+            archive.write(path, arcname=str(path))
+    return buffer.getvalue()
 
 
 def magnification_uploaders(key_prefix: str) -> dict[str, bytes]:
@@ -109,7 +142,23 @@ def pathway_tab(pathway: str) -> None:
         st.caption(f"Model {config.MODEL_ID}, effort {config.EFFORT}, "
                    f"protocol v{config.PROTOCOL_VERSION}")
 
-        if st.button(f"Initialize {pathway} RAG system", key=f"{prefix}_init"):
+        ready_to_init = store_ready(pathway)
+        if not ready_to_init:
+            st.error(
+                f"No vector store at `{config.CHROMA_DIR[pathway]}/`. "
+                f"This pathway cannot run until it is built.")
+            with st.expander("How to fix this"):
+                st.markdown(
+                    "Run `python build_vector_stores.py --check` to see "
+                    "which source PDFs are present, then "
+                    "`python build_vector_stores.py` to build, and commit "
+                    "the store directory. The stores are small (the CSCC "
+                    "one is about 1.3 MB) and belong in the repo, because "
+                    "managed hosts have no persistent disk to build them "
+                    "onto.")
+
+        if st.button(f"Initialize {pathway} RAG system", key=f"{prefix}_init",
+                     disabled=not ready_to_init):
             with st.spinner("Initializing..."):
                 try:
                     if is_cscc:
@@ -125,6 +174,20 @@ def pathway_tab(pathway: str) -> None:
 
         st.write("Ready" if st.session_state.get(init_key)
                  else "Not initialized")
+
+        logs = collect_logs()
+        if logs:
+            st.divider()
+            st.caption(
+                f"{len(logs)} case log(s) this session. Hosted deployments "
+                f"have no persistent disk, so download before you finish.")
+            st.download_button(
+                "Download all case logs (.zip)",
+                data=logs_zip(),
+                file_name=(f"dermpathgrader_logs_"
+                           f"{datetime.datetime.now():%Y%m%d_%H%M}.zip"),
+                mime="application/zip",
+                key=f"{prefix}_dl_all")
 
     left, right = st.columns([1, 1])
 
@@ -188,8 +251,14 @@ def pathway_tab(pathway: str) -> None:
             else:
                 display_nevi_results(result)
             log_path = st.session_state.get(f"{prefix}_log_path")
-            if log_path:
+            if log_path and pathlib.Path(log_path).exists():
                 st.caption(f"Logged to {log_path}")
+                st.download_button(
+                    "Download this case log (.json)",
+                    data=pathlib.Path(log_path).read_text(encoding="utf-8"),
+                    file_name=pathlib.Path(log_path).name,
+                    mime="application/json",
+                    key=f"{prefix}_dl_one")
 
 
 def main() -> None:

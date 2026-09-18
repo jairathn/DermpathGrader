@@ -9,6 +9,9 @@ try:
     from langchain_text_splitters import RecursiveCharacterTextSplitter
 except ImportError:  # pragma: no cover - older environments
     from langchain.text_splitter import RecursiveCharacterTextSplitter
+# Must precede the chromadb import: some managed hosts ship a
+# SQLite older than the 3.35 chromadb requires.
+import sqlite_compat  # noqa: F401
 import chromadb
 import hashlib as _hashlib
 from chromadb.config import Settings
