@@ -18,7 +18,7 @@ JPEG derivatives, because the vision API cannot read `.svs`.
 
 ```bash
 ./setup.sh                              # venv, deps, source-PDF check
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env     # gitignored; never commit it
 python doctor.py --ping                 # everything ready? model reachable?
 python tests/test_smoke.py              # offline, no key needed
 python tests/test_e2e.py                # whole chain, offline
@@ -39,6 +39,16 @@ python verify_logging.py
 python join_and_score.py                # concordance, replicates, reader study
 python report.py --all                  # synoptic report per case
 ```
+
+## The API key
+
+Put it in a `.env` file in the project root (local), or in Settings →
+Secrets on Streamlit Community Cloud. `credentials.py` finds it in
+either, plus a plain environment variable, and `doctor.py` reports which.
+
+**Never commit it.** GitHub scans pushes for Anthropic keys and
+Anthropic revokes what it finds, and the commit stays in the history
+regardless. `.env` is gitignored; keep it that way.
 
 ## Documentation
 

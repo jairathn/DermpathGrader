@@ -137,9 +137,36 @@ docker run -p 8501:8501 -e ANTHROPIC_API_KEY=sk-ant-... \
 The volume mount matters: without it, case logs vanish when the container
 stops, and a log that does not survive is not a record.
 
-## Never commit the key
+## Where the API key goes
 
-`.env` is gitignored. Use the host's secrets manager, not a file in the
-repo. If a key is ever pushed, rotate it at console.anthropic.com rather
-than deleting the commit — the commit stays in the history and in every
-clone.
+`credentials.py` looks in three places, in this order, and stops at the
+first hit. It never overwrites a key already in the environment.
+
+| Where | Used by | How |
+|---|---|---|
+| `ANTHROPIC_API_KEY` env var | containers, CI, a shell | `export ANTHROPIC_API_KEY=sk-ant-...` |
+| Streamlit secrets | Streamlit Community Cloud | Settings → Secrets, `ANTHROPIC_API_KEY = "sk-ant-..."` |
+| `.env` in the project root | local development | `ANTHROPIC_API_KEY=sk-ant-...` |
+
+`python doctor.py` prints which of the three it found the key in, so
+"it works locally but not deployed" is one command to diagnose.
+
+## Never put the key in the repository
+
+Not in a source file, not in a committed `.env`, not in a notebook
+output, and not in a private repo either.
+
+GitHub scans every push for Anthropic keys and reports matches to
+Anthropic, which revokes them automatically. Beyond that, a commit is
+permanent: it stays in the history, in every fork, and in every clone
+that already pulled it, so deleting the line in a later commit does
+nothing. If a key is ever pushed, **rotate it at console.anthropic.com**
+rather than trying to rewrite history.
+
+`.env` is in `.gitignore` and must stay there. To confirm before a
+push:
+
+```bash
+git check-ignore .env && echo "ignored, good"
+git log --all -S "sk-ant-" --oneline    # should print nothing
+```

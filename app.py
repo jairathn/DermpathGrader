@@ -21,6 +21,7 @@ from __future__ import annotations
 import datetime
 import io
 import json
+import os
 import pathlib
 import zipfile
 
@@ -28,8 +29,13 @@ import streamlit as st
 
 import claude_transport
 import config
+import credentials
 import image_utils
 import report
+
+# Streamlit Cloud puts the key in st.secrets; local dev puts it in .env.
+# Both are copied into the environment here, before any client is built.
+credentials.ensure_api_key()
 from grading_logger import CaseLogger
 from utils import initialize_session_state, display_results
 from nevi_utils import initialize_nevi_session_state, display_nevi_results
@@ -143,6 +149,14 @@ def pathway_tab(pathway: str) -> None:
             st.write("Also assigns an MPATH-Dx v2.0 class (0, I, II, III, IV)")
         st.caption(f"Model {config.MODEL_ID}, effort {config.EFFORT}, "
                    f"protocol v{config.PROTOCOL_VERSION}")
+
+        if not os.environ.get("ANTHROPIC_API_KEY"):
+            st.error(
+                "No ANTHROPIC_API_KEY. On Streamlit Community Cloud put it "
+                "in Settings -> Secrets; locally put it in a .env file in "
+                "the project root. Grading will fail until then.")
+        else:
+            st.caption(f"API key from {credentials.describe_source()}")
 
         ready_to_init = store_ready(pathway)
         if not ready_to_init:

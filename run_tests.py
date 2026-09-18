@@ -42,7 +42,6 @@ import csv
 import datetime
 import hashlib
 import json
-import os
 import pathlib
 import sys
 import threading
@@ -50,6 +49,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 
 import config
+import credentials
 import image_utils
 from grading_logger import CaseLogger
 
@@ -332,9 +332,13 @@ def main() -> None:
         sys.exit("--target-replicates must be at least 2.")
     if args.workers < 1:
         sys.exit("--workers must be at least 1.")
-    have_key = bool(os.getenv("ANTHROPIC_API_KEY"))
+    have_key = bool(credentials.ensure_api_key())
     if not args.dry_run and not have_key:
-        sys.exit("ANTHROPIC_API_KEY not set.")
+        sys.exit(
+            "ANTHROPIC_API_KEY not found in the environment or a .env file "
+            "in the project root.\n"
+            "  export ANTHROPIC_API_KEY=sk-ant-...   or put it in .env\n"
+            "Run `python doctor.py` to check everything at once.")
 
     manifest = load_manifest()
     print(f"Session   {manifest['session_id']}")

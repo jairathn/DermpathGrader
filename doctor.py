@@ -20,6 +20,7 @@ import sys
 from collections import Counter
 
 import config
+import credentials
 
 _results: list[tuple[str, str, str]] = []   # (level, name, detail)
 
@@ -136,12 +137,16 @@ def check_manifest() -> dict | None:
 
 
 def check_key(ping: bool) -> None:
+    credentials.ensure_api_key()
     key = os.getenv("ANTHROPIC_API_KEY")
     if not key:
-        fail("api key", "ANTHROPIC_API_KEY not set (put it in .env, or the "
-             "host's secrets manager)")
+        fail("api key",
+             "ANTHROPIC_API_KEY not found in the environment, Streamlit "
+             "secrets, or a .env file in the project root. Never commit it "
+             "to the repository.")
         return
-    ok("api key", f"present ({key[:7]}...{key[-4:]})")
+    ok("api key", f"present ({key[:7]}...{key[-4:]}) via "
+       f"{credentials.describe_source()}")
     if not ping:
         return
     try:

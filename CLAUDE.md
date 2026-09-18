@@ -27,6 +27,10 @@ python tests/test_e2e.py                       # offline end-to-end
 ```
 
 Python 3.11. The only required secret is `ANTHROPIC_API_KEY`.
+`credentials.ensure_api_key()` resolves it from, in order: the
+environment, Streamlit secrets, then a gitignored `.env` in the project
+root. It is called by `app.py`, `doctor.py` and `run_tests.py` before
+any client is built. The key is never committed, in any form.
 
 ## Protocol history
 
@@ -62,6 +66,7 @@ Everything about *grading* is duplicated per pathway, deliberately.
 | Reader grades | `data/reader_grades_cscc.csv` | `data/reader_grades_nevus.csv` |
 
 Shared modules carry **no grading logic**: `config.py` (constants),
+`credentials.py` (key discovery),
 `image_utils.py` (pixels), `grading_logger.py` (file I/O),
 `claude_transport.py` (the API call itself), `mpath_dx.py` (the
 published class definitions), `report.py` (rendering). The prohibition
