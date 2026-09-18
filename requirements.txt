@@ -1,0 +1,22 @@
+# Fallback dependency list. The authoritative source is pyproject.toml
+# plus uv.lock, both of which came across in the export.
+#
+# Prefer:  uv sync
+# Fallback: pip install -r requirements.txt
+#
+# Versions below are the ones the Replit environment reported. Anything
+# without a pin was not confirmed at export time and should be checked
+# against uv.lock.
+
+streamlit
+anthropic==0.52.2
+chromadb==1.0.12
+pillow==11.2.1
+pandas
+numpy
+
+# Installed in the Replit environment but NOT used by this app. The RAG
+# pipeline talks to ChromaDB directly and to Claude via the Anthropic
+# SDK, with no LangChain abstraction in between. Listed only so you
+# know why it appears in uv.lock. Safe to omit.
+# langchain==0.3.25

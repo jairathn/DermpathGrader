@@ -1,0 +1,1193 @@
+{
+  "manifest_version": "1.0",
+  "session_id": "2026-07-30T00:17:12Z-grading",
+  "created_utc": "2026-07-30T00:17:12Z",
+  "environment": {
+    "python_version": "3.11.14 (main, Oct  9 2025, 16:16:55) [GCC 15.2.0]",
+    "platform": "Linux-6.18.34-x86_64-with-glibc2.40",
+    "packages": {
+      "chromadb": "1.0.12",
+      "sentence-transformers": "?",
+      "langchain": "0.3.25",
+      "langchain-text-splitters": "0.3.8",
+      "pypdf": "5.6.0",
+      "anthropic": "0.52.2",
+      "pillow": "11.2.1"
+    }
+  },
+  "pathways": {
+    "CSCC": {
+      "vector_store": {
+        "path": "chroma_db",
+        "collection": "scc_grading_literature",
+        "chunk_count": 72,
+        "chunk_id_fingerprint_sha256": "8efff73f6869552224b1eab183f86ed35e3ce06581dbdde12309e656f8dab8aa",
+        "corpus_fingerprint_sha256": "99a4d98c13b449aa7eee937134e1825f6a276fffd6fd9df19fa1f859121146fd",
+        "embedding_function": {
+          "class": "chromadb.utils.embedding_functions.DefaultEmbeddingFunction",
+          "resolved_model": "all-MiniLM-L6-v2",
+          "dimensions": 384
+        },
+        "chunking": {
+          "splitter": "RecursiveCharacterTextSplitter",
+          "chunk_size": 1000,
+          "chunk_overlap": 200,
+          "separators": [
+            "\n\n",
+            "\n",
+            " ",
+            ""
+          ]
+        },
+        "source_documents": [
+          {
+            "filename": "Grading differentiation.pdf",
+            "sha256": "6f129280de43c07ba328ca23d29e700ab3028a64796801c4b0b1cb08a1648b40",
+            "page_count": 7,
+            "chunk_count": 52
+          },
+          {
+            "filename": "Grading SCC diff.pdf",
+            "sha256": "fb20bbd10e6dc11a85f1522a354d08430bfa40d5646bcddf5bf6137b22fd15de",
+            "page_count": 4,
+            "chunk_count": 20
+          }
+        ]
+      },
+      "retrieval": {
+        "n_results_per_subquery": 5,
+        "subqueries": [
+          "well differentiated squamous cell carcinoma characteristics keratinization",
+          "moderately differentiated squamous cell carcinoma features",
+          "poorly differentiated squamous cell carcinoma criteria atypia",
+          "keratin pearls horn cysts squamous cell carcinoma grading",
+          "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+          "Broders grading system squamous cell carcinoma",
+          "WHO grading squamous cell carcinoma differentiation"
+        ],
+        "results": [
+          {
+            "subquery_n": 1,
+            "subquery": "well differentiated squamous cell carcinoma characteristics keratinization",
+            "rank": 1,
+            "chunk_id": "doc_64",
+            "distance": 0.5462,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "Table II.Round 2 survey results regarding histologic features to be included in cutaneous squamous cell\ncarcinoma differentiation grading\nStatement Median DI\nKeratinization should be considered when assessing CSCC differentiation. 9.0 0.1\nKeratin pearls and horn cysts should be considered as keratinization. To a lesser\ndegree, intracellular keratin formation ( pink, glassy keratin within tumor\ncells) should be considered.\n9.0 0.1\nParakeratosis or keratin on top of the tumor alone should not be considered as\nkeratinization.\n8.0 0.1\nThe entire visible tumor should be used to assess keratinization, and attention\nshould be paid to the worst appearing portion of the tumor* (area with the\nleast degree of keratinization).\n9.0 0.1\nSome tumors have ‘‘biphasic’’ keratinization. For example, the majority of the\ntumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor* should"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "well differentiated squamous cell carcinoma characteristics keratinization",
+            "rank": 2,
+            "chunk_id": "doc_9",
+            "distance": 0.6031,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "combined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles \ncombined Grades 1 and 2 ( > 50% differentiation) as well \ndifferentiated [22, 56], and another grouped Grades 3 and 4 \n(< 50% differentiated) as poorly differentiated [35].\nBălăşoiu (2008) utilized the Broders system but defined \ndifferentiation as the presence of mature, keratinizing cells \nwithin tumor islands [ 7]. Kanoko (2000) utilized Broders’ \nGrade 1–4 system, but offered specific definitions for each \ncategory; Grade 1 was defined as having prominent intercel-\nlular bridging and keratin pearl formation with mild anapla-\nsia. Grade 2 was defined as having keratin pearl formation \nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "well differentiated squamous cell carcinoma characteristics keratinization",
+            "rank": 3,
+            "chunk_id": "doc_10",
+            "distance": 0.6421,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "as well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia \nwith no identifiable keratinization [ 42]. Weinberg (2007) \nsuggested defining “differentiated” in the Broders system as \nareas with keratinization and horn pearls [76]. Ch’ng (2013) \nfurther expanded on the definition of “differentiated” in the \nBroders system as areas with prominent keratinization and \nhorn pearls, a low level of pleomorphism, small nuclei with \nabundant cytoplasm, and strong cellular cohesion at the \ntumor borders [24]. McIlwee (2021) only considered kerati-\nnization in determining Broders grading [55].\nWorld Health Organization (WHO)\nSimilar to the Wick modification of the Broders system, the \nWHO system for grading CSCC differentiation includes \nwell differentiated (grade 1; <25% undifferentiated areas), \nmoderately differentiated (grade 2; 25–75% undifferentiated"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "well differentiated squamous cell carcinoma characteristics keratinization",
+            "rank": 4,
+            "chunk_id": "doc_13",
+            "distance": 0.7082,
+            "source": "Grading differentiation.pdf",
+            "page": 2,
+            "text": "may have mitotic figures but these should be primarily \nfound in the basal layer. Moderately differentiated tumors \nhave less prominent keratinization, typically restricted to \nindividual cells and scattered pearls and cysts; in addition, \nthere is a high mitotic burden and prominent pleomorphism. \nPoorly differentiated tumors may have sparse keratiniza -\ntion and/or intercellular bridging, but are overall difficult to \nidentify as squamous, and undifferentiated tumors are com-\npletely anaplastic [21, 72]. Two other articles in this review \nutilized this grading system [11, 45].\nCSCC histology consensus guidelines\nIn 2023, a group of dermatopathologists completed a Delphi \nprocess to determine consensus guidelines for reporting the \nhistology of actinic keratoses and CSCCs (Table 4) [25]. A \nminor focus of this study was grading CSCC differentiation. \nThe panel recommended a well, moderately, and poorly \ndifferentiated grading system; moving to 2 categories was"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "well differentiated squamous cell carcinoma characteristics keratinization",
+            "rank": 5,
+            "chunk_id": "doc_59",
+            "distance": 0.7182,
+            "source": "Grading SCC diff.pdf",
+            "page": 1,
+            "text": "Minneapolis, Minnesota\nn;D e p a r t m e n to f\nDermatology, Cleveland Clinic Lerner College\nof Medicine, Cleveland, Ohio\no; Department of\nDermatology, Warren Alpert Medical School of\nBrown University, Providence, Rhode Island p;\nDepartment of Dermatology, Brigham and\nWomen’s Hospital, Boston, Massachusetts\nq;a n d\nTable I.Round 2 survey results regarding structure of cutaneous squamous cell carcinoma differentiation\ngrading\nStatement Median DI\nDifferentiation should be determined in all cases of CSCC, as long as there is adequate tissue\navailable to make this assessment. In specimens that do not contain enough tissue to make a\ndetermination (such as superficial shave biopsies or Mohs layers with minimal residual\ntumor), as much information as possible should be recorded about the histologic features\nrelevant to differentiation.\n9.0 0.1\nDermatopathologists, pathologists, and Mohs surgeons should all aim to consistently"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderately differentiated squamous cell carcinoma features",
+            "rank": 1,
+            "chunk_id": "doc_2",
+            "distance": 0.61,
+            "source": "Grading differentiation.pdf",
+            "page": 0,
+            "text": "comes including local recurrence, nodal metastasis, distant \nmetastasis, and disease-specific death. High risk factors \n \r Kathryn T. Shahwan\nKathryn.Shahwan@osumc.edu\n1 University of North Dakota, School of Medicine and Health \nSciences, Grand Forks, ND, USA\n2 The Ohio State University College of Medicine, Columbus, \nOH, USA\n3 Department of Dermatology, The Ohio State University \nMedical Center, 6700 University Blvd, Columbus,  \nOH 43016, USA\n4 Department of Dermatology, Altru Health System, Grand \nForks, Grand Forks, ND, USA\nAbstract\nPoor differentiation is strongly associated with poor outcomes in cutaneous squamous cell carcinoma (CSCC). In addi -\ntion, the National Comprehensive Cancer Network (NCCN) guidelines designate poorly differentiated tumors as “very \nhigh risk”. Despite its clear prognostic implications, there is no standardized grading system for CSCC differentiation in"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderately differentiated squamous cell carcinoma features",
+            "rank": 2,
+            "chunk_id": "doc_7",
+            "distance": 0.6354,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "squamous cell carcinoma were reviewed and summarized. \nA second PubMed search was performed to identify articles \non grading differentiation in non-cutaneous head and neck \nSCC; this included terms related to differentiation, histo -\nlogic grade, and oropharyngeal SCC.\nLiterature review: differentiation grading systems \nin CSCC\nBroders\nThe Broders system [ 16, 17] (Table 1) was used in the \nAJCC-7 staging manual [ 28], and was also presented in \nmany of the reviewed articles [ 6, 7, 14, 19, 20, 22–24, 31, \n32, 35, 37, 38, 42, 43, 46, 47, 52, 55, 56, 61–63, 69, 76]. \nThis system was first described in 1921 and grades CSCCs \n1–4 based on the percentage of the tumor that is differenti -\nated. Grade 1 tumors are 75% or more differentiated, Grade \n2 tumors are 50–75% differentiated, Grade 3 tumors are \n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderately differentiated squamous cell carcinoma features",
+            "rank": 3,
+            "chunk_id": "doc_59",
+            "distance": 0.7001,
+            "source": "Grading SCC diff.pdf",
+            "page": 1,
+            "text": "Minneapolis, Minnesota\nn;D e p a r t m e n to f\nDermatology, Cleveland Clinic Lerner College\nof Medicine, Cleveland, Ohio\no; Department of\nDermatology, Warren Alpert Medical School of\nBrown University, Providence, Rhode Island p;\nDepartment of Dermatology, Brigham and\nWomen’s Hospital, Boston, Massachusetts\nq;a n d\nTable I.Round 2 survey results regarding structure of cutaneous squamous cell carcinoma differentiation\ngrading\nStatement Median DI\nDifferentiation should be determined in all cases of CSCC, as long as there is adequate tissue\navailable to make this assessment. In specimens that do not contain enough tissue to make a\ndetermination (such as superficial shave biopsies or Mohs layers with minimal residual\ntumor), as much information as possible should be recorded about the histologic features\nrelevant to differentiation.\n9.0 0.1\nDermatopathologists, pathologists, and Mohs surgeons should all aim to consistently"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderately differentiated squamous cell carcinoma features",
+            "rank": 4,
+            "chunk_id": "doc_29",
+            "distance": 0.7395,
+            "source": "Grading differentiation.pdf",
+            "page": 4,
+            "text": "15. Broders AC (1920) Squamous cell epithelioma of the lip: a study \nof five hundred and thirty-seven cases. JAMA 74(10):656–664\n16. Broders AC (1921) Squamous cell epithelioma of the skin: \na study of 256 cases. Ann Surg 73(2):141–160. https://doi.\norg/10.1097/00000658-192102000-00001\n17. Broders AC (1932) Practical points on the microscopic grading of \ncarcinoma. NY State J Med 32:667–671\n18. Bryne M, Koppang HS, Lilleng R et al (1989) New malignancy \ngrading is a better prognostic indicator than Broders’ grading in \noral squamous cell carcinomas. J Oral Pathol Med 18(8):432–\n437. https://doi.org/10.1111/j.1600-0714.1989.tb01339.x\n19. Bukhari MH, Niazi S, Chaudhry NA (2009) Relationship of \nimmunohistochemistry scores of altered p53 protein expression \nin relation to patient’s habits and histological grades and stages of \nsquamous cell carcinoma. J Cutan Pathol 36(3):342–349. https://\ndoi.org/10.1111/j.1600-0560.2008.01040.x\n20. Burton KA, Ashack KA, Khachemoune A (2016) Cutane -"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderately differentiated squamous cell carcinoma features",
+            "rank": 5,
+            "chunk_id": "doc_4",
+            "distance": 0.7648,
+            "source": "Grading differentiation.pdf",
+            "page": 0,
+            "text": "articles and histology textbook excerpts. CSCC grading systems that were identified and summarized include the histori -\ncal Broders system, the World Health Organization system, the College of American Pathologists’ system, and a system \ndescribed by a 2023 Delphi consensus panel of dermatopathologists.\nKeywords Cutaneous squamous cell carcinoma · Differentiation · Histologic grade · Staging · Outcomes\nReceived: 23 May 2024 / Revised: 23 May 2024 / Accepted: 15 June 2024 / Published online: 27 June 2024\n© The Author(s), under exclusive licence to Springer-Verlag GmbH Germany, part of Springer Nature 2024\nGrading differentiation in cutaneous squamous cell carcinoma: a \nreview of the literature\nClaire Diede1 · Trent Walker2 · David R. Carr3 · Kathryn T. Shahwan1,3,4\n1 3"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "poorly differentiated squamous cell carcinoma criteria atypia",
+            "rank": 1,
+            "chunk_id": "doc_66",
+            "distance": 0.6482,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "differentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1\nThe entire visible tumor should be used to assess cellular atypia, and careful\nattention should be paid to the worst appearing portion of the tumor*.\n9.0 0.1\nSome tumors may have ‘‘biphasic’’ cellular atypia. For example, the majority of\nthe tumor may have minimal cellular atypia, with a minor focus that has\nprominent cellular atypia. The worst appearing portion of the tumor* should\nbe considered when assessing cellular atypia. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.3\nTumor architecture should be considered when assessing CSCC differentiation. 8.0 0.3\nThe entire visible tumor should be used to assess tumor architecture, and\nattention should be paid to the worst appearing portion of the tumor*.\n9.0 0.1"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "poorly differentiated squamous cell carcinoma criteria atypia",
+            "rank": 2,
+            "chunk_id": "doc_65",
+            "distance": 0.746,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "tumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor* should\nbe considered when assessing keratinization. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.1\nCellular atypia should be considered when assessing CSCC differentiation. 9.0 0.3\nPleomorphism (variability in size and shape of tumor cells and their nuclei)\nshould be considered when assessing cellular atypia.\n9.0 0.3\nPresence of spindled keratinocytes is an important feature of cellular atypia that\nshould be considered when assessing CSCC differentiation.\n9.0 0.1\nNumber of mitotic figures should not be considered when assessing CSCC\ndifferentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "poorly differentiated squamous cell carcinoma criteria atypia",
+            "rank": 3,
+            "chunk_id": "doc_2",
+            "distance": 0.7563,
+            "source": "Grading differentiation.pdf",
+            "page": 0,
+            "text": "comes including local recurrence, nodal metastasis, distant \nmetastasis, and disease-specific death. High risk factors \n \r Kathryn T. Shahwan\nKathryn.Shahwan@osumc.edu\n1 University of North Dakota, School of Medicine and Health \nSciences, Grand Forks, ND, USA\n2 The Ohio State University College of Medicine, Columbus, \nOH, USA\n3 Department of Dermatology, The Ohio State University \nMedical Center, 6700 University Blvd, Columbus,  \nOH 43016, USA\n4 Department of Dermatology, Altru Health System, Grand \nForks, Grand Forks, ND, USA\nAbstract\nPoor differentiation is strongly associated with poor outcomes in cutaneous squamous cell carcinoma (CSCC). In addi -\ntion, the National Comprehensive Cancer Network (NCCN) guidelines designate poorly differentiated tumors as “very \nhigh risk”. Despite its clear prognostic implications, there is no standardized grading system for CSCC differentiation in"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "poorly differentiated squamous cell carcinoma criteria atypia",
+            "rank": 4,
+            "chunk_id": "doc_71",
+            "distance": 0.8406,
+            "source": "Grading SCC diff.pdf",
+            "page": 3,
+            "text": "2. Diede C, Walker T, Carr DR, Shahwan KT. Grading differenti-\nation in cutaneous squamous cell carcinoma: a review of the\nliterature. Arch Dermatol Res. 2024;316(7):434.\n3. Nash J, Shahwan KT, Chung C, et al. Grading of differentiation\nin cutaneous squamous cell carcinoma: evaluation of inter-\nrater and intrarater reliability.J Am Acad Dermatol. 2022;87(4):\n895-897.\n4. Prezzano JC, Scott GA, Lambert Smith F, Mannava KA,\nIbrahim SF. Concordance of squamous cell carcinoma histo-\nlogic grading among dermatopathologists and Mohs sur-\ngeons. Dermatol Surg. 2021;47(11):1433-1437.\n5. Fitch K, Bernstein SJ, Aguilar MD, et al. The RAND/UCLA\nAppropriateness Method User’s Manual. RAND; 2001.\nhttps://doi.org/10.1016/j.jaad.2025.05.003\nJA M ACAD DERMATOL\nn 2025\n4 Brief Report"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "poorly differentiated squamous cell carcinoma criteria atypia",
+            "rank": 5,
+            "chunk_id": "doc_68",
+            "distance": 0.8796,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "6.0 0.7\nDesmoplasia ( formation of a fibrotic stroma around the tumor cells) should be\nconsidered in assessing CSCC differentiation.\n7.0 0.7\nIf a tumor cannot be identified as CSCC without immunohistochemical staining,\nit should be considered poorly differentiated.\n9.0 0.0\nMedian appropriateness rating (1-3¼ not appropriate, 4-6¼ uncertain, 7-9 ¼ appropriate) and disagreement index (DI¼ interpercentile\nrange [IPR]/interpercentile range adjusted for symmetry [IPRAS]; DI of greater than or equal to 1 represents lack of consensus).\nCSCC, Cutaneous squamous cell carcinoma;DI, disagreement index.\n*Least differentiated appearing portion of the tumor.\nJA M ACAD DERMATOL\nVOLUME jj,N UMBER j\nBrief Report 3"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "keratin pearls horn cysts squamous cell carcinoma grading",
+            "rank": 1,
+            "chunk_id": "doc_64",
+            "distance": 0.7281,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "Table II.Round 2 survey results regarding histologic features to be included in cutaneous squamous cell\ncarcinoma differentiation grading\nStatement Median DI\nKeratinization should be considered when assessing CSCC differentiation. 9.0 0.1\nKeratin pearls and horn cysts should be considered as keratinization. To a lesser\ndegree, intracellular keratin formation ( pink, glassy keratin within tumor\ncells) should be considered.\n9.0 0.1\nParakeratosis or keratin on top of the tumor alone should not be considered as\nkeratinization.\n8.0 0.1\nThe entire visible tumor should be used to assess keratinization, and attention\nshould be paid to the worst appearing portion of the tumor* (area with the\nleast degree of keratinization).\n9.0 0.1\nSome tumors have ‘‘biphasic’’ keratinization. For example, the majority of the\ntumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor* should"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "keratin pearls horn cysts squamous cell carcinoma grading",
+            "rank": 2,
+            "chunk_id": "doc_10",
+            "distance": 0.7626,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "as well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia \nwith no identifiable keratinization [ 42]. Weinberg (2007) \nsuggested defining “differentiated” in the Broders system as \nareas with keratinization and horn pearls [76]. Ch’ng (2013) \nfurther expanded on the definition of “differentiated” in the \nBroders system as areas with prominent keratinization and \nhorn pearls, a low level of pleomorphism, small nuclei with \nabundant cytoplasm, and strong cellular cohesion at the \ntumor borders [24]. McIlwee (2021) only considered kerati-\nnization in determining Broders grading [55].\nWorld Health Organization (WHO)\nSimilar to the Wick modification of the Broders system, the \nWHO system for grading CSCC differentiation includes \nwell differentiated (grade 1; <25% undifferentiated areas), \nmoderately differentiated (grade 2; 25–75% undifferentiated"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "keratin pearls horn cysts squamous cell carcinoma grading",
+            "rank": 3,
+            "chunk_id": "doc_13",
+            "distance": 0.7899,
+            "source": "Grading differentiation.pdf",
+            "page": 2,
+            "text": "may have mitotic figures but these should be primarily \nfound in the basal layer. Moderately differentiated tumors \nhave less prominent keratinization, typically restricted to \nindividual cells and scattered pearls and cysts; in addition, \nthere is a high mitotic burden and prominent pleomorphism. \nPoorly differentiated tumors may have sparse keratiniza -\ntion and/or intercellular bridging, but are overall difficult to \nidentify as squamous, and undifferentiated tumors are com-\npletely anaplastic [21, 72]. Two other articles in this review \nutilized this grading system [11, 45].\nCSCC histology consensus guidelines\nIn 2023, a group of dermatopathologists completed a Delphi \nprocess to determine consensus guidelines for reporting the \nhistology of actinic keratoses and CSCCs (Table 4) [25]. A \nminor focus of this study was grading CSCC differentiation. \nThe panel recommended a well, moderately, and poorly \ndifferentiated grading system; moving to 2 categories was"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "keratin pearls horn cysts squamous cell carcinoma grading",
+            "rank": 4,
+            "chunk_id": "doc_9",
+            "distance": 0.8215,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "combined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles \ncombined Grades 1 and 2 ( > 50% differentiation) as well \ndifferentiated [22, 56], and another grouped Grades 3 and 4 \n(< 50% differentiated) as poorly differentiated [35].\nBălăşoiu (2008) utilized the Broders system but defined \ndifferentiation as the presence of mature, keratinizing cells \nwithin tumor islands [ 7]. Kanoko (2000) utilized Broders’ \nGrade 1–4 system, but offered specific definitions for each \ncategory; Grade 1 was defined as having prominent intercel-\nlular bridging and keratin pearl formation with mild anapla-\nsia. Grade 2 was defined as having keratin pearl formation \nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "keratin pearls horn cysts squamous cell carcinoma grading",
+            "rank": 5,
+            "chunk_id": "doc_27",
+            "distance": 0.9393,
+            "source": "Grading differentiation.pdf",
+            "page": 4,
+            "text": "noma. Rom J Morphol Embryol 49(2):211–214\n8. Barksdale SK, O’Connor N, Barnhill R (1997) Prognostic factors \nfor cutaneous squamous cell and basal cell carcinoma. Determi -\nnants of risk of recurrence, metastasis, and development of sub -\nsequent skin cancers. Surg Oncol Clin N Am 6(3):625–638\n9. Barnes L, Eveson JW, Reichart P, Kleihues P, Sobin LH et al (eds) \n(2005) World health organization classification of tumours, 3rd \nedn. IARC, Lyon\n10. Barzilai A, Lyakhovitsky A, Trau H et al (2007) Expression of \np53 in the evolution of squamous cell carcinoma: correlation with \nthe histology of the lesion. J Am Acad Dermatol 57(4):669–676\n11. Berger F, Geddert H, Faller G, Werner M, Dimmler A (2014) \nPattern of TGFbeta receptor 1 expression differs between kras-\nmutated keratoacanthomas and squamous cell carcinomas of the \nskin. Pathol Res Pract 210(9):596–602. https://doi.org/10.1016/j.\nprp.2014.05.006\n12. Brandwein-Gensler M, Teixeira MS, Lewis CM et al (2005)"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+            "rank": 1,
+            "chunk_id": "doc_66",
+            "distance": 0.7841,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "differentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1\nThe entire visible tumor should be used to assess cellular atypia, and careful\nattention should be paid to the worst appearing portion of the tumor*.\n9.0 0.1\nSome tumors may have ‘‘biphasic’’ cellular atypia. For example, the majority of\nthe tumor may have minimal cellular atypia, with a minor focus that has\nprominent cellular atypia. The worst appearing portion of the tumor* should\nbe considered when assessing cellular atypia. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.3\nTumor architecture should be considered when assessing CSCC differentiation. 8.0 0.3\nThe entire visible tumor should be used to assess tumor architecture, and\nattention should be paid to the worst appearing portion of the tumor*.\n9.0 0.1"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+            "rank": 2,
+            "chunk_id": "doc_65",
+            "distance": 0.7855,
+            "source": "Grading SCC diff.pdf",
+            "page": 2,
+            "text": "tumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor* should\nbe considered when assessing keratinization. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.1\nCellular atypia should be considered when assessing CSCC differentiation. 9.0 0.3\nPleomorphism (variability in size and shape of tumor cells and their nuclei)\nshould be considered when assessing cellular atypia.\n9.0 0.3\nPresence of spindled keratinocytes is an important feature of cellular atypia that\nshould be considered when assessing CSCC differentiation.\n9.0 0.1\nNumber of mitotic figures should not be considered when assessing CSCC\ndifferentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+            "rank": 3,
+            "chunk_id": "doc_69",
+            "distance": 0.9858,
+            "source": "Grading SCC diff.pdf",
+            "page": 3,
+            "text": "Department of Dermatology, Texas Tech Univer-\nsity Health Sciences Center, Lubbock, Texas.r\nFunding sources: This study was funded by a\nresearch grant from the Dermatology\nFoundation.\nPatient consent: N/a.\nIRB approval status: Reviewed and approved by the\nOhio State University Institutional Review Board;\napproval #2023C0129.\nKey words: cellular atypia; cutaneous squamous\ncell carcinoma; differentiation; histologic grade;\nkeratinization; modified Delphi panel; tumor\narchitecture.\nCorrespondence to: Kathryn T. Shahwan, MD,\nDepartment of Dermatology, The Ohio State\nUniversity Medical Center, 6700 University Blvd,\nDublin, Ohio 43016\nE-mail: Kathryn.Shahwan@osumc.edu\nConﬂicts of interest\nSean R. Christensen has served as a consultant for Castle\nBiosciences; Emily S. Ruiz serves as a consultant for\nRegeneron Inc., Checkpoint Therapeutic, Feldan\nPharmaceuticals, and Merck Pharmaceuticals. She serves\nas a Principal Investigator/Co-Investigator for the"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+            "rank": 4,
+            "chunk_id": "doc_27",
+            "distance": 1.0163,
+            "source": "Grading differentiation.pdf",
+            "page": 4,
+            "text": "noma. Rom J Morphol Embryol 49(2):211–214\n8. Barksdale SK, O’Connor N, Barnhill R (1997) Prognostic factors \nfor cutaneous squamous cell and basal cell carcinoma. Determi -\nnants of risk of recurrence, metastasis, and development of sub -\nsequent skin cancers. Surg Oncol Clin N Am 6(3):625–638\n9. Barnes L, Eveson JW, Reichart P, Kleihues P, Sobin LH et al (eds) \n(2005) World health organization classification of tumours, 3rd \nedn. IARC, Lyon\n10. Barzilai A, Lyakhovitsky A, Trau H et al (2007) Expression of \np53 in the evolution of squamous cell carcinoma: correlation with \nthe histology of the lesion. J Am Acad Dermatol 57(4):669–676\n11. Berger F, Geddert H, Faller G, Werner M, Dimmler A (2014) \nPattern of TGFbeta receptor 1 expression differs between kras-\nmutated keratoacanthomas and squamous cell carcinomas of the \nskin. Pathol Res Pract 210(9):596–602. https://doi.org/10.1016/j.\nprp.2014.05.006\n12. Brandwein-Gensler M, Teixeira MS, Lewis CM et al (2005)"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+            "rank": 5,
+            "chunk_id": "doc_30",
+            "distance": 1.0219,
+            "source": "Grading differentiation.pdf",
+            "page": 4,
+            "text": "squamous cell carcinoma. J Cutan Pathol 36(3):342–349. https://\ndoi.org/10.1111/j.1600-0560.2008.01040.x\n20. Burton KA, Ashack KA, Khachemoune A (2016) Cutane -\nous squamous cell carcinoma: a review of high-risk and meta -\nstatic disease. Am J Clin Dermatol 17(5):491–508. https://doi.\norg/10.1007/s40257-016-0207-3\n21. Calonje E, Brenn T, Lazar AJ, Billings SD (2020) Tumors of the \nsurface epithelium. In: Calonje E, Brenn T, Lazar AJ, Billings SD \n(eds) McKee’s pathology of the skin with clinical correlations, \n5th edn. Elsevier Mosby, Philadelphia\n22. Campoli M, Brodland DG, Zitelli J (2014) A prospective evalua-\ntion of the clinical, histologic, and therapeutic variables associated \n2 categorizations. A dichotomous system would be easier \nto define, and may improve reliability. However, there are \ntwo major concerns with a dichotomous system. First, a \ndichotomous system has not yet been shown to correlate to \npoor CSCC outcomes. Second, moderate differentiation is"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "Broders grading system squamous cell carcinoma",
+            "rank": 1,
+            "chunk_id": "doc_7",
+            "distance": 0.5339,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "squamous cell carcinoma were reviewed and summarized. \nA second PubMed search was performed to identify articles \non grading differentiation in non-cutaneous head and neck \nSCC; this included terms related to differentiation, histo -\nlogic grade, and oropharyngeal SCC.\nLiterature review: differentiation grading systems \nin CSCC\nBroders\nThe Broders system [ 16, 17] (Table 1) was used in the \nAJCC-7 staging manual [ 28], and was also presented in \nmany of the reviewed articles [ 6, 7, 14, 19, 20, 22–24, 31, \n32, 35, 37, 38, 42, 43, 46, 47, 52, 55, 56, 61–63, 69, 76]. \nThis system was first described in 1921 and grades CSCCs \n1–4 based on the percentage of the tumor that is differenti -\nated. Grade 1 tumors are 75% or more differentiated, Grade \n2 tumors are 50–75% differentiated, Grade 3 tumors are \n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "Broders grading system squamous cell carcinoma",
+            "rank": 2,
+            "chunk_id": "doc_29",
+            "distance": 0.5871,
+            "source": "Grading differentiation.pdf",
+            "page": 4,
+            "text": "15. Broders AC (1920) Squamous cell epithelioma of the lip: a study \nof five hundred and thirty-seven cases. JAMA 74(10):656–664\n16. Broders AC (1921) Squamous cell epithelioma of the skin: \na study of 256 cases. Ann Surg 73(2):141–160. https://doi.\norg/10.1097/00000658-192102000-00001\n17. Broders AC (1932) Practical points on the microscopic grading of \ncarcinoma. NY State J Med 32:667–671\n18. Bryne M, Koppang HS, Lilleng R et al (1989) New malignancy \ngrading is a better prognostic indicator than Broders’ grading in \noral squamous cell carcinomas. J Oral Pathol Med 18(8):432–\n437. https://doi.org/10.1111/j.1600-0714.1989.tb01339.x\n19. Bukhari MH, Niazi S, Chaudhry NA (2009) Relationship of \nimmunohistochemistry scores of altered p53 protein expression \nin relation to patient’s habits and histological grades and stages of \nsquamous cell carcinoma. J Cutan Pathol 36(3):342–349. https://\ndoi.org/10.1111/j.1600-0560.2008.01040.x\n20. Burton KA, Ashack KA, Khachemoune A (2016) Cutane -"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "Broders grading system squamous cell carcinoma",
+            "rank": 3,
+            "chunk_id": "doc_10",
+            "distance": 0.697,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "as well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia \nwith no identifiable keratinization [ 42]. Weinberg (2007) \nsuggested defining “differentiated” in the Broders system as \nareas with keratinization and horn pearls [76]. Ch’ng (2013) \nfurther expanded on the definition of “differentiated” in the \nBroders system as areas with prominent keratinization and \nhorn pearls, a low level of pleomorphism, small nuclei with \nabundant cytoplasm, and strong cellular cohesion at the \ntumor borders [24]. McIlwee (2021) only considered kerati-\nnization in determining Broders grading [55].\nWorld Health Organization (WHO)\nSimilar to the Wick modification of the Broders system, the \nWHO system for grading CSCC differentiation includes \nwell differentiated (grade 1; <25% undifferentiated areas), \nmoderately differentiated (grade 2; 25–75% undifferentiated"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "Broders grading system squamous cell carcinoma",
+            "rank": 4,
+            "chunk_id": "doc_8",
+            "distance": 0.7453,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion \nof cells with large, dark, single nucleoli should be consid -\nered [16, 17]. Broders also stated that if there is difficulty \nchoosing between 2 grades, to select the higher grade [ 17]. \nBroders’ system has been criticized for its vagueness and \nlack of simplicity [23, 62].\nClassically, Grade 1 tumors corresponded to well dif -\nferentiated, Grade 2 to moderately differentiated, Grade 3 \nto poorly differentiated, and Grade 4 to undifferentiated [ 6, \n42]. In 1990, Wick suggested in the textbook “Pathology \nof the Skin” that Broders Grade 1 be designated as well \ndifferentiated, Grades 2 and 3 (25–75% differentiated) be \ncombined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "Broders grading system squamous cell carcinoma",
+            "rank": 5,
+            "chunk_id": "doc_9",
+            "distance": 0.7761,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "combined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles \ncombined Grades 1 and 2 ( > 50% differentiation) as well \ndifferentiated [22, 56], and another grouped Grades 3 and 4 \n(< 50% differentiated) as poorly differentiated [35].\nBălăşoiu (2008) utilized the Broders system but defined \ndifferentiation as the presence of mature, keratinizing cells \nwithin tumor islands [ 7]. Kanoko (2000) utilized Broders’ \nGrade 1–4 system, but offered specific definitions for each \ncategory; Grade 1 was defined as having prominent intercel-\nlular bridging and keratin pearl formation with mild anapla-\nsia. Grade 2 was defined as having keratin pearl formation \nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "WHO grading squamous cell carcinoma differentiation",
+            "rank": 1,
+            "chunk_id": "doc_2",
+            "distance": 0.5386,
+            "source": "Grading differentiation.pdf",
+            "page": 0,
+            "text": "comes including local recurrence, nodal metastasis, distant \nmetastasis, and disease-specific death. High risk factors \n \r Kathryn T. Shahwan\nKathryn.Shahwan@osumc.edu\n1 University of North Dakota, School of Medicine and Health \nSciences, Grand Forks, ND, USA\n2 The Ohio State University College of Medicine, Columbus, \nOH, USA\n3 Department of Dermatology, The Ohio State University \nMedical Center, 6700 University Blvd, Columbus,  \nOH 43016, USA\n4 Department of Dermatology, Altru Health System, Grand \nForks, Grand Forks, ND, USA\nAbstract\nPoor differentiation is strongly associated with poor outcomes in cutaneous squamous cell carcinoma (CSCC). In addi -\ntion, the National Comprehensive Cancer Network (NCCN) guidelines designate poorly differentiated tumors as “very \nhigh risk”. Despite its clear prognostic implications, there is no standardized grading system for CSCC differentiation in"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "WHO grading squamous cell carcinoma differentiation",
+            "rank": 2,
+            "chunk_id": "doc_7",
+            "distance": 0.5533,
+            "source": "Grading differentiation.pdf",
+            "page": 1,
+            "text": "squamous cell carcinoma were reviewed and summarized. \nA second PubMed search was performed to identify articles \non grading differentiation in non-cutaneous head and neck \nSCC; this included terms related to differentiation, histo -\nlogic grade, and oropharyngeal SCC.\nLiterature review: differentiation grading systems \nin CSCC\nBroders\nThe Broders system [ 16, 17] (Table 1) was used in the \nAJCC-7 staging manual [ 28], and was also presented in \nmany of the reviewed articles [ 6, 7, 14, 19, 20, 22–24, 31, \n32, 35, 37, 38, 42, 43, 46, 47, 52, 55, 56, 61–63, 69, 76]. \nThis system was first described in 1921 and grades CSCCs \n1–4 based on the percentage of the tumor that is differenti -\nated. Grade 1 tumors are 75% or more differentiated, Grade \n2 tumors are 50–75% differentiated, Grade 3 tumors are \n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "WHO grading squamous cell carcinoma differentiation",
+            "rank": 3,
+            "chunk_id": "doc_4",
+            "distance": 0.5709,
+            "source": "Grading differentiation.pdf",
+            "page": 0,
+            "text": "articles and histology textbook excerpts. CSCC grading systems that were identified and summarized include the histori -\ncal Broders system, the World Health Organization system, the College of American Pathologists’ system, and a system \ndescribed by a 2023 Delphi consensus panel of dermatopathologists.\nKeywords Cutaneous squamous cell carcinoma · Differentiation · Histologic grade · Staging · Outcomes\nReceived: 23 May 2024 / Revised: 23 May 2024 / Accepted: 15 June 2024 / Published online: 27 June 2024\n© The Author(s), under exclusive licence to Springer-Verlag GmbH Germany, part of Springer Nature 2024\nGrading differentiation in cutaneous squamous cell carcinoma: a \nreview of the literature\nClaire Diede1 · Trent Walker2 · David R. Carr3 · Kathryn T. Shahwan1,3,4\n1 3"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "WHO grading squamous cell carcinoma differentiation",
+            "rank": 4,
+            "chunk_id": "doc_59",
+            "distance": 0.5719,
+            "source": "Grading SCC diff.pdf",
+            "page": 1,
+            "text": "Minneapolis, Minnesota\nn;D e p a r t m e n to f\nDermatology, Cleveland Clinic Lerner College\nof Medicine, Cleveland, Ohio\no; Department of\nDermatology, Warren Alpert Medical School of\nBrown University, Providence, Rhode Island p;\nDepartment of Dermatology, Brigham and\nWomen’s Hospital, Boston, Massachusetts\nq;a n d\nTable I.Round 2 survey results regarding structure of cutaneous squamous cell carcinoma differentiation\ngrading\nStatement Median DI\nDifferentiation should be determined in all cases of CSCC, as long as there is adequate tissue\navailable to make this assessment. In specimens that do not contain enough tissue to make a\ndetermination (such as superficial shave biopsies or Mohs layers with minimal residual\ntumor), as much information as possible should be recorded about the histologic features\nrelevant to differentiation.\n9.0 0.1\nDermatopathologists, pathologists, and Mohs surgeons should all aim to consistently"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "WHO grading squamous cell carcinoma differentiation",
+            "rank": 5,
+            "chunk_id": "doc_71",
+            "distance": 0.5831,
+            "source": "Grading SCC diff.pdf",
+            "page": 3,
+            "text": "2. Diede C, Walker T, Carr DR, Shahwan KT. Grading differenti-\nation in cutaneous squamous cell carcinoma: a review of the\nliterature. Arch Dermatol Res. 2024;316(7):434.\n3. Nash J, Shahwan KT, Chung C, et al. Grading of differentiation\nin cutaneous squamous cell carcinoma: evaluation of inter-\nrater and intrarater reliability.J Am Acad Dermatol. 2022;87(4):\n895-897.\n4. Prezzano JC, Scott GA, Lambert Smith F, Mannava KA,\nIbrahim SF. Concordance of squamous cell carcinoma histo-\nlogic grading among dermatopathologists and Mohs sur-\ngeons. Dermatol Surg. 2021;47(11):1433-1437.\n5. Fitch K, Bernstein SJ, Aguilar MD, et al. The RAND/UCLA\nAppropriateness Method User’s Manual. RAND; 2001.\nhttps://doi.org/10.1016/j.jaad.2025.05.003\nJA M ACAD DERMATOL\nn 2025\n4 Brief Report"
+          }
+        ],
+        "unique_chunk_ids": [
+          "doc_64",
+          "doc_9",
+          "doc_10",
+          "doc_13",
+          "doc_59",
+          "doc_2",
+          "doc_7",
+          "doc_29",
+          "doc_4",
+          "doc_66",
+          "doc_65",
+          "doc_71",
+          "doc_68",
+          "doc_27",
+          "doc_69",
+          "doc_30",
+          "doc_8"
+        ],
+        "unique_chunk_count": 17,
+        "duplicate_retrieval_count": 18,
+        "context_block_chars": 32670,
+        "context_block_sha256": "5676667f177481b950cb12d07ff5d4c366589a2ab207d351bf01e766276d099e"
+      },
+      "generation": {
+        "model_requested": "claude-opus-4-5-20251101",
+        "temperature": 0.1,
+        "max_tokens": 1500,
+        "system_template_text": "",
+        "system_template_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "user_template_text": "\nYou are an expert dermatopathologist analyzing a histopathology image of cutaneous squamous cell carcinoma (CSCC) for differentiation grading. \n\nBased on the following medical literature context from authoritative sources:\n\n{context}\n\nANALYZE the provided histopathology image for these features:\n- Keratinization: keratin pearls, horn cysts, intracellular keratin (present = better differentiated)\n- Cellular atypia: pleomorphism, nuclear abnormalities (high = poorly differentiated)  \n- Tumor architecture: organized vs infiltrative/disorganized\n- Squamous maturation: gradient from basal to keratinized cells\n- Mitotic activity: low, moderate, or high\n\nGRADING CRITERIA:\n- Well Differentiated: abundant keratinization, keratin pearls present, minimal atypia, organized\n- Moderately Differentiated: some keratinization, moderate atypia\n- Poorly Differentiated: minimal/absent keratinization, high atypia, infiltrative, basaloid\n\nYOU MUST PROVIDE A GRADE. Respond with a JSON object in this exact format:\n```json\n{{\n  \"primary_grade\": \"Well Differentiated\" or \"Moderately Differentiated\" or \"Poorly Differentiated\",\n  \"confidence_level\": \"High\" or \"Medium\" or \"Low\",\n  \"keratinization_present\": true or false,\n  \"atypia_level\": \"minimal\" or \"moderate\" or \"high\",\n  \"key_features\": [\"feature 1\", \"feature 2\", \"feature 3\"],\n  \"additional_observations\": \"any other findings\"\n}}\n```\n\nRULES:\n1. You MUST choose one of the three grades - never leave it blank or unknown\n2. If keratinization is absent/minimal AND atypia is high → grade is \"Poorly Differentiated\"\n3. If abundant keratinization AND minimal atypia → grade is \"Well Differentiated\"\n4. When uncertain, base grade on the predominant features observed\n5. For mixed grades, report the worst (least differentiated) component\n",
+        "user_template_sha256": "e1859415fb37be22d453706dde1d475ff9cfa743ebb4745c0c3e140481234145"
+      },
+      "output_schema_fields": [
+        "primary_grade",
+        "confidence_level",
+        "keratinization_present",
+        "atypia_level",
+        "key_features",
+        "additional_observations"
+      ]
+    },
+    "Nevus": {
+      "vector_store": {
+        "path": "chroma_db_nevi",
+        "collection": "nevi_grading_literature",
+        "chunk_count": 294,
+        "chunk_id_fingerprint_sha256": "c3c358226597af7d39fde8ee3b457583be266f1c8a38d9d1f83148249c751a68",
+        "corpus_fingerprint_sha256": "d84c42bf28e2b547f3b597db85eb50b0a9100ea3f68522da487f3111b22af8de",
+        "embedding_function": {
+          "class": "chromadb.utils.embedding_functions.DefaultEmbeddingFunction",
+          "resolved_model": "all-MiniLM-L6-v2",
+          "dimensions": 384
+        },
+        "chunking": {
+          "splitter": "RecursiveCharacterTextSplitter",
+          "chunk_size": 1000,
+          "chunk_overlap": 200,
+          "separators": [
+            "\n\n",
+            "\n",
+            " ",
+            ""
+          ]
+        },
+        "source_documents": [
+          {
+            "filename": "Nevi 2001_1749902667336.pdf",
+            "sha256": "d919380ede68ac1f953dc7b83928d32f376e4be37adde3b16a2d11015c2d6319",
+            "page_count": 12,
+            "chunk_count": 57
+          },
+          {
+            "filename": "Nevi 2025_1749902667337.pdf",
+            "sha256": "f5c217b3e5bf2c2f14667d5606bd2a2c12eab30a0c48c2ea327ebc45040eef01",
+            "page_count": 20,
+            "chunk_count": 96
+          },
+          {
+            "filename": "Nevi MPath 2_1749902667338.pdf",
+            "sha256": "f73feda7d4fb176e4dd3fd996eb682bb753a327efbd10915ce7949efde361fc0",
+            "page_count": 24,
+            "chunk_count": 95
+          },
+          {
+            "filename": "Nevi MPath_1749902667339.pdf",
+            "sha256": "a5fabc89b1472b0df34828fbbd0a896f95a79a3176da5df195a28b6ffe2be901",
+            "page_count": 17,
+            "chunk_count": 46
+          }
+        ]
+      },
+      "retrieval": {
+        "n_results_per_subquery": 5,
+        "subqueries": [
+          "mild dysplasia atypical melanocytic nevi characteristics",
+          "moderate dysplasia atypical melanocytic nevi features",
+          "severe dysplasia atypical melanocytic nevi criteria",
+          "low grade dysplasia melanocytic lesions",
+          "high grade dysplasia melanocytic lesions",
+          "nuclear atypia melanocytic nevi grading",
+          "architectural disorder melanocytic nevi",
+          "junctional melanocytic hyperplasia",
+          "MPATH-Dx classification melanocytic lesions",
+          "dysplastic nevus histologic criteria",
+          "melanocytic atypia grading system",
+          "WHO classification dysplastic nevi"
+        ],
+        "results": [
+          {
+            "subquery_n": 1,
+            "subquery": "mild dysplasia atypical melanocytic nevi characteristics",
+            "rank": 1,
+            "chunk_id": "nevi_doc_49",
+            "distance": 0.4066,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 9,
+            "text": "cytological dysplasia in acquired melanocytic nevi. Hum\nPathol. 1999;30:506-512.\n17. Kurman RJ, Henson DE, Herbst AL, et al. Interim guidelines\nfor management of abnormal cervical cytology: The 1992 Na-\ntional Cancer Institute Workshop. JAMA. 1994;271:1866-1869.\n18. Riddell RH, Goldman H, Ransohoff DF , et al. Dysplasia in in-\nflammatory bowel disease: standardized classification with pro-\nvisional clinical applications. Hum Pathol. 1983;14:931-968.\n❚Table 3❚\nStatistically Significant Histologic Features for the Distinction of Atypical (Dysplastic) Melanocytic Nevi (AMN) From Atypical-\nmole Syndrome (AMS) *\nAMS History\nHistologic Feature Positive Negative P\nDegree of atypia .006\nAMN-mild 22 (17 .9) 22 (17 .9)\nAMN-moderate 9 (7 .3) 43 (35.0)\nAMN-severe 9 (7 .3) 18 (14.6)\nLateral extension pattern .022\nLentiginous 8 (6.5) 21 (17 .0)\nNested 16 (13.0) 25 (20.3)\nMixed 0 (0.0) 9 (7 .3)\nNonapplicable 16 (13.0) 28 (22.8)\nJunctional nest orientation .001\nHorizontal 27 (22.0) 73 (59.3)"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "mild dysplasia atypical melanocytic nevi characteristics",
+            "rank": 2,
+            "chunk_id": "nevi_doc_0",
+            "distance": 0.4394,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "Anatomic Pathology / GRADING ATYPICAL MELANOCYTIC NEVI\n194 Am J Clin Pathol 2001;115:194-204   © American Society of Clinical Pathologists\nCritical Analysis of Histologic Criteria for Grading Atypical\n(Dysplastic) Melanocytic Nevi\nLucia Pozo, MD,1 Mahmoud Naase, PhD,2 Rino Cerio, MD,1,2 Alfredo Blanes, MD,3\nand Salvador J. Diaz-Cano, MD2\nKey Words: Melanocytic nevus; Histologic grading; Severe dysplasia; Regression; Atypical-mole syndrome\nAbstract\nLow concordance in grading atypical (dysplastic)\nmelanocytic nevi (AMN) has been reported, and no\nsystematic evaluation is available. We studied 123 AMN\nwith architectural and cytologic atypia (40 associated\nwith atypical-mole syndrome), classified according to\nstandard criteria by 3 independent observers.\nHistologic variables included junctional and dermal\nsymmetry, lateral extension, cohesion and migration of\nepidermal melanocytes, maturation, regression, nuclear\nfeatures, nuclear grade, melanin, inflammatory"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "mild dysplasia atypical melanocytic nevi characteristics",
+            "rank": 3,
+            "chunk_id": "nevi_doc_26",
+            "distance": 0.4686,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "al,\n14 who reported that a careful clinical examination of indi-\nvidual melanocytic nevi separates severe dysplasia from low-\ngrade (mild or moderate) dysplasia in a high percentage of\nnevi from patients with the dysplastic nevus syndrome. A\ngeneral application of clinical and histologic grading systems\nwill improve the clinicopathologic correlation in AMN.\nThe grading system failed to distinguish AMN-mild\nfrom AMN-moderate. The features differentiating these two\nconditions were mainly architectural, some of them related\nto the association with the atypical-mole syndrome (see later\ntext). A low incidence of nuclear abnormalities and the\nabsence of prominent pleomorphism mainly characterized\nAMN-mild. However, a reliable classification system should\ninclude positive findings, lacking in this case for AMN-mild\nbecause anisokaryosis must be considered a general feature\nof AMN (it was present in 104/123 AMN [84.6%] in this\nseries), as suggested in a previous study.\n6 A similar situation"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "mild dysplasia atypical melanocytic nevi characteristics",
+            "rank": 4,
+            "chunk_id": "nevi_doc_190",
+            "distance": 0.491,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 7,
+            "text": "providing more clearly defined guidelines for pathologists and clinicians in the treatment of \npatients with these melanocytic lesions. First of all, with respect to surgical intervention for \natypical nevi, we are striving to reduce the overall number of surgical procedures, in line \nwith increasing information, eg, that many lesions with lesser degrees of atypia (ie, mild \nto moderate atypia; low grade in the WHO 2018 Classification) need not, in general, be \nre-excised because of very low risk for recurrence as bona fide melanoma.28–32 In particular, \nBarnhill et al. Page 8\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 1,
+            "subquery": "mild dysplasia atypical melanocytic nevi characteristics",
+            "rank": 5,
+            "chunk_id": "nevi_doc_5",
+            "distance": 0.4925,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 1,
+            "text": "Anatomic Pathology / ORIGINAL ARTICLE\nAm J Clin Pathol 2001;115:194-204     195© American Society of Clinical Pathologists\ntotal number of melanocytic lesions, indicating that the\npathologic grading scheme may be useful.13 Further refine-\nment of the criteria for grading melanocytic dysplasia and\nexperience in grading are critical for accuracy in subcatego-\nrization of AMN.\n5 No systematic evaluation of the histologic\ncriteria for grading AMN is available to date.\nThis article describes a statistically validated system for\ngrading melanocytic dysplasia in a series of AMN, a third\nassociated with atypical-mole syndrome, prioritizing the\nhistologic features. We also performed a detailed comparison\nof histologic features in sporadic AMN with those associated\nwith the atypical-mole syndrome.\nMaterials and Methods\nWe retrospectively studied 123 consecutive lesions clini-\ncally diagnosed as atypical melanocytic nevi from 111\npatients biopsied between January 1, 1989, and December"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderate dysplasia atypical melanocytic nevi features",
+            "rank": 1,
+            "chunk_id": "nevi_doc_49",
+            "distance": 0.4247,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 9,
+            "text": "cytological dysplasia in acquired melanocytic nevi. Hum\nPathol. 1999;30:506-512.\n17. Kurman RJ, Henson DE, Herbst AL, et al. Interim guidelines\nfor management of abnormal cervical cytology: The 1992 Na-\ntional Cancer Institute Workshop. JAMA. 1994;271:1866-1869.\n18. Riddell RH, Goldman H, Ransohoff DF , et al. Dysplasia in in-\nflammatory bowel disease: standardized classification with pro-\nvisional clinical applications. Hum Pathol. 1983;14:931-968.\n❚Table 3❚\nStatistically Significant Histologic Features for the Distinction of Atypical (Dysplastic) Melanocytic Nevi (AMN) From Atypical-\nmole Syndrome (AMS) *\nAMS History\nHistologic Feature Positive Negative P\nDegree of atypia .006\nAMN-mild 22 (17 .9) 22 (17 .9)\nAMN-moderate 9 (7 .3) 43 (35.0)\nAMN-severe 9 (7 .3) 18 (14.6)\nLateral extension pattern .022\nLentiginous 8 (6.5) 21 (17 .0)\nNested 16 (13.0) 25 (20.3)\nMixed 0 (0.0) 9 (7 .3)\nNonapplicable 16 (13.0) 28 (22.8)\nJunctional nest orientation .001\nHorizontal 27 (22.0) 73 (59.3)"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderate dysplasia atypical melanocytic nevi features",
+            "rank": 2,
+            "chunk_id": "nevi_doc_0",
+            "distance": 0.4856,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "Anatomic Pathology / GRADING ATYPICAL MELANOCYTIC NEVI\n194 Am J Clin Pathol 2001;115:194-204   © American Society of Clinical Pathologists\nCritical Analysis of Histologic Criteria for Grading Atypical\n(Dysplastic) Melanocytic Nevi\nLucia Pozo, MD,1 Mahmoud Naase, PhD,2 Rino Cerio, MD,1,2 Alfredo Blanes, MD,3\nand Salvador J. Diaz-Cano, MD2\nKey Words: Melanocytic nevus; Histologic grading; Severe dysplasia; Regression; Atypical-mole syndrome\nAbstract\nLow concordance in grading atypical (dysplastic)\nmelanocytic nevi (AMN) has been reported, and no\nsystematic evaluation is available. We studied 123 AMN\nwith architectural and cytologic atypia (40 associated\nwith atypical-mole syndrome), classified according to\nstandard criteria by 3 independent observers.\nHistologic variables included junctional and dermal\nsymmetry, lateral extension, cohesion and migration of\nepidermal melanocytes, maturation, regression, nuclear\nfeatures, nuclear grade, melanin, inflammatory"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderate dysplasia atypical melanocytic nevi features",
+            "rank": 3,
+            "chunk_id": "nevi_doc_190",
+            "distance": 0.5034,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 7,
+            "text": "providing more clearly defined guidelines for pathologists and clinicians in the treatment of \npatients with these melanocytic lesions. First of all, with respect to surgical intervention for \natypical nevi, we are striving to reduce the overall number of surgical procedures, in line \nwith increasing information, eg, that many lesions with lesser degrees of atypia (ie, mild \nto moderate atypia; low grade in the WHO 2018 Classification) need not, in general, be \nre-excised because of very low risk for recurrence as bona fide melanoma.28–32 In particular, \nBarnhill et al. Page 8\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderate dysplasia atypical melanocytic nevi features",
+            "rank": 4,
+            "chunk_id": "nevi_doc_26",
+            "distance": 0.5103,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "al,\n14 who reported that a careful clinical examination of indi-\nvidual melanocytic nevi separates severe dysplasia from low-\ngrade (mild or moderate) dysplasia in a high percentage of\nnevi from patients with the dysplastic nevus syndrome. A\ngeneral application of clinical and histologic grading systems\nwill improve the clinicopathologic correlation in AMN.\nThe grading system failed to distinguish AMN-mild\nfrom AMN-moderate. The features differentiating these two\nconditions were mainly architectural, some of them related\nto the association with the atypical-mole syndrome (see later\ntext). A low incidence of nuclear abnormalities and the\nabsence of prominent pleomorphism mainly characterized\nAMN-mild. However, a reliable classification system should\ninclude positive findings, lacking in this case for AMN-mild\nbecause anisokaryosis must be considered a general feature\nof AMN (it was present in 104/123 AMN [84.6%] in this\nseries), as suggested in a previous study.\n6 A similar situation"
+          },
+          {
+            "subquery_n": 2,
+            "subquery": "moderate dysplasia atypical melanocytic nevi features",
+            "rank": 5,
+            "chunk_id": "nevi_doc_21",
+            "distance": 0.5289,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 3,
+            "text": "mild and AMN-moderate. No nuclear feature distinguished\nAMN associated with the atypical-mole syndrome.\nDiscussion\nHistologic criteria reliably distinguished AMN-severe\nfrom AMN-mild and AMN-moderate, based on the study of\nA B\nC ❚Image 1❚High-grade dysplasia in atypical melanocytic nevi\n(AMN). A, AMN show an asymmetrical junctional pattern—\nepithelioid on the left side and lentiginous on the right side\n(H&E, ×40). B, Suprabasilar melanocytes on top of lentigi-\nnous hyperplasia (H&E, ×250). C, Obvious nuclear abnormali-\nties (H&E, ×400).\nDownloaded from https://academic.oup.com/ajcp/article/115/2/194/1757971 by NYU Stem School of Business user on 14 June 2025"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "severe dysplasia atypical melanocytic nevi criteria",
+            "rank": 1,
+            "chunk_id": "nevi_doc_49",
+            "distance": 0.414,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 9,
+            "text": "cytological dysplasia in acquired melanocytic nevi. Hum\nPathol. 1999;30:506-512.\n17. Kurman RJ, Henson DE, Herbst AL, et al. Interim guidelines\nfor management of abnormal cervical cytology: The 1992 Na-\ntional Cancer Institute Workshop. JAMA. 1994;271:1866-1869.\n18. Riddell RH, Goldman H, Ransohoff DF , et al. Dysplasia in in-\nflammatory bowel disease: standardized classification with pro-\nvisional clinical applications. Hum Pathol. 1983;14:931-968.\n❚Table 3❚\nStatistically Significant Histologic Features for the Distinction of Atypical (Dysplastic) Melanocytic Nevi (AMN) From Atypical-\nmole Syndrome (AMS) *\nAMS History\nHistologic Feature Positive Negative P\nDegree of atypia .006\nAMN-mild 22 (17 .9) 22 (17 .9)\nAMN-moderate 9 (7 .3) 43 (35.0)\nAMN-severe 9 (7 .3) 18 (14.6)\nLateral extension pattern .022\nLentiginous 8 (6.5) 21 (17 .0)\nNested 16 (13.0) 25 (20.3)\nMixed 0 (0.0) 9 (7 .3)\nNonapplicable 16 (13.0) 28 (22.8)\nJunctional nest orientation .001\nHorizontal 27 (22.0) 73 (59.3)"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "severe dysplasia atypical melanocytic nevi criteria",
+            "rank": 2,
+            "chunk_id": "nevi_doc_0",
+            "distance": 0.4345,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "Anatomic Pathology / GRADING ATYPICAL MELANOCYTIC NEVI\n194 Am J Clin Pathol 2001;115:194-204   © American Society of Clinical Pathologists\nCritical Analysis of Histologic Criteria for Grading Atypical\n(Dysplastic) Melanocytic Nevi\nLucia Pozo, MD,1 Mahmoud Naase, PhD,2 Rino Cerio, MD,1,2 Alfredo Blanes, MD,3\nand Salvador J. Diaz-Cano, MD2\nKey Words: Melanocytic nevus; Histologic grading; Severe dysplasia; Regression; Atypical-mole syndrome\nAbstract\nLow concordance in grading atypical (dysplastic)\nmelanocytic nevi (AMN) has been reported, and no\nsystematic evaluation is available. We studied 123 AMN\nwith architectural and cytologic atypia (40 associated\nwith atypical-mole syndrome), classified according to\nstandard criteria by 3 independent observers.\nHistologic variables included junctional and dermal\nsymmetry, lateral extension, cohesion and migration of\nepidermal melanocytes, maturation, regression, nuclear\nfeatures, nuclear grade, melanin, inflammatory"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "severe dysplasia atypical melanocytic nevi criteria",
+            "rank": 3,
+            "chunk_id": "nevi_doc_190",
+            "distance": 0.4361,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 7,
+            "text": "providing more clearly defined guidelines for pathologists and clinicians in the treatment of \npatients with these melanocytic lesions. First of all, with respect to surgical intervention for \natypical nevi, we are striving to reduce the overall number of surgical procedures, in line \nwith increasing information, eg, that many lesions with lesser degrees of atypia (ie, mild \nto moderate atypia; low grade in the WHO 2018 Classification) need not, in general, be \nre-excised because of very low risk for recurrence as bona fide melanoma.28–32 In particular, \nBarnhill et al. Page 8\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "severe dysplasia atypical melanocytic nevi criteria",
+            "rank": 4,
+            "chunk_id": "nevi_doc_26",
+            "distance": 0.4678,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "al,\n14 who reported that a careful clinical examination of indi-\nvidual melanocytic nevi separates severe dysplasia from low-\ngrade (mild or moderate) dysplasia in a high percentage of\nnevi from patients with the dysplastic nevus syndrome. A\ngeneral application of clinical and histologic grading systems\nwill improve the clinicopathologic correlation in AMN.\nThe grading system failed to distinguish AMN-mild\nfrom AMN-moderate. The features differentiating these two\nconditions were mainly architectural, some of them related\nto the association with the atypical-mole syndrome (see later\ntext). A low incidence of nuclear abnormalities and the\nabsence of prominent pleomorphism mainly characterized\nAMN-mild. However, a reliable classification system should\ninclude positive findings, lacking in this case for AMN-mild\nbecause anisokaryosis must be considered a general feature\nof AMN (it was present in 104/123 AMN [84.6%] in this\nseries), as suggested in a previous study.\n6 A similar situation"
+          },
+          {
+            "subquery_n": 3,
+            "subquery": "severe dysplasia atypical melanocytic nevi criteria",
+            "rank": 5,
+            "chunk_id": "nevi_doc_5",
+            "distance": 0.4715,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 1,
+            "text": "Anatomic Pathology / ORIGINAL ARTICLE\nAm J Clin Pathol 2001;115:194-204     195© American Society of Clinical Pathologists\ntotal number of melanocytic lesions, indicating that the\npathologic grading scheme may be useful.13 Further refine-\nment of the criteria for grading melanocytic dysplasia and\nexperience in grading are critical for accuracy in subcatego-\nrization of AMN.\n5 No systematic evaluation of the histologic\ncriteria for grading AMN is available to date.\nThis article describes a statistically validated system for\ngrading melanocytic dysplasia in a series of AMN, a third\nassociated with atypical-mole syndrome, prioritizing the\nhistologic features. We also performed a detailed comparison\nof histologic features in sporadic AMN with those associated\nwith the atypical-mole syndrome.\nMaterials and Methods\nWe retrospectively studied 123 consecutive lesions clini-\ncally diagnosed as atypical melanocytic nevi from 111\npatients biopsied between January 1, 1989, and December"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "low grade dysplasia melanocytic lesions",
+            "rank": 1,
+            "chunk_id": "nevi_doc_236",
+            "distance": 0.4498,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 19,
+            "text": "version 2.0 class II, but again with uncertainty by the expert consensus panel. This lesion \nillustrates how morphological criteria may not be conclusive for the definitive interpretation \nof many melanocytic lesions in this intermediate spectrum and particularly for high-grade \nlesions. Uncertainty about such lesions exists and should be communicated in diagnostic \nreports.\nBarnhill et al. Page 20\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "low grade dysplasia melanocytic lesions",
+            "rank": 2,
+            "chunk_id": "nevi_doc_58",
+            "distance": 0.5791,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "Melanocytic Lesions: Description of an Algorithmic\nClinico-Pathological Classification\nSébastien Menzinger 1,2, *\n , Rastine Merat 1\n and Gürkan Kaya 1,2\n1 Department of Dermatology and Venereology, University Hospital of Geneva, Rue Gabrielle-Perret-Gentil 4,\n1205 Genève, Switzerland\n2 Department of Clinical Pathology, University Hospital of Geneva, Rue Michel Servet 1,\n1205 Genève, Switzerland\n* Correspondence: sebastien.menzinger@hug.ch; Tel.: +41-795534228\nAbstract: The diagnosis, interpretation, and classification of melanocytic tumors is a very\ncomplex topic in the pathology and dermatopathology field that lacks standardization and\nis still subject to discordance and debate. Here, we review the definitions of dysplastic\nnevus and superficial atypical melanocytic proliferations and provide an overview of\nsome areas still subject to debate and some attempts of standardization. Furthermore, we\ndescribe an algorithmic classification, and provide some examples of clinico-pathological"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "low grade dysplasia melanocytic lesions",
+            "rank": 3,
+            "chunk_id": "nevi_doc_60",
+            "distance": 0.5818,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "multiple melanocytic lesions having distinctive clinical and histological features associated\nwith an increased risk of developing melanoma [ 1]. Since then, many names have been\ngiven to this “syndrome” and to the associated melanocytic lesions described in these\npatients, now known as DN, or “nevus with architectural disorder and cytological atypia of\nmelanocytes” [2]. DN was then also described in nonfamilial and nonsyndromic settings [3].\nIts very concept, relevance, and definition have been subject to controversy ever since. DN\nis often recognized as an important risk factor for melanoma, as some studies have shown\na higher risk for people with DN exhibiting higher grades of melanocytic atypia [4–7].\nDespite its name, DN is not considered as a true dysplastic precursor or premalignant\nlesion, in comparison, for example, with actinic keratosis. Nevertheless, melanoma can\narise on a DN, but the individual/global risk seems to be very low [8–11]."
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "low grade dysplasia melanocytic lesions",
+            "rank": 4,
+            "chunk_id": "nevi_doc_5",
+            "distance": 0.5826,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 1,
+            "text": "Anatomic Pathology / ORIGINAL ARTICLE\nAm J Clin Pathol 2001;115:194-204     195© American Society of Clinical Pathologists\ntotal number of melanocytic lesions, indicating that the\npathologic grading scheme may be useful.13 Further refine-\nment of the criteria for grading melanocytic dysplasia and\nexperience in grading are critical for accuracy in subcatego-\nrization of AMN.\n5 No systematic evaluation of the histologic\ncriteria for grading AMN is available to date.\nThis article describes a statistically validated system for\ngrading melanocytic dysplasia in a series of AMN, a third\nassociated with atypical-mole syndrome, prioritizing the\nhistologic features. We also performed a detailed comparison\nof histologic features in sporadic AMN with those associated\nwith the atypical-mole syndrome.\nMaterials and Methods\nWe retrospectively studied 123 consecutive lesions clini-\ncally diagnosed as atypical melanocytic nevi from 111\npatients biopsied between January 1, 1989, and December"
+          },
+          {
+            "subquery_n": 4,
+            "subquery": "low grade dysplasia melanocytic lesions",
+            "rank": 5,
+            "chunk_id": "nevi_doc_59",
+            "distance": 0.5974,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "some areas still subject to debate and some attempts of standardization. Furthermore, we\ndescribe an algorithmic classification, and provide some examples of clinico-pathological\ncorrelation. This step-by-step algorithm has an educational purpose and may automatize\nthe work of dermatopathologists. We hope that through further molecular studies, this\nfine-grained scheme will prove to be related to the biological behavior of these atypical\nmelanocytic lesions.\nKeywords: dysplastic nevus; superficial borderline atypical melanocytic lesion; melanoma;\ndermatoscopy; clinico-pathological correlation; classification\n1. Introduction\nThe clinico-pathological concept of dysplastic nevus (DN) was first described by\nClark et al. in 1978, initially under the term “B-K mole syndrome”, in families with\nmultiple melanocytic lesions having distinctive clinical and histological features associated\nwith an increased risk of developing melanoma [ 1]. Since then, many names have been"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "high grade dysplasia melanocytic lesions",
+            "rank": 1,
+            "chunk_id": "nevi_doc_236",
+            "distance": 0.4428,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 19,
+            "text": "version 2.0 class II, but again with uncertainty by the expert consensus panel. This lesion \nillustrates how morphological criteria may not be conclusive for the definitive interpretation \nof many melanocytic lesions in this intermediate spectrum and particularly for high-grade \nlesions. Uncertainty about such lesions exists and should be communicated in diagnostic \nreports.\nBarnhill et al. Page 20\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "high grade dysplasia melanocytic lesions",
+            "rank": 2,
+            "chunk_id": "nevi_doc_58",
+            "distance": 0.5815,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "Melanocytic Lesions: Description of an Algorithmic\nClinico-Pathological Classification\nSébastien Menzinger 1,2, *\n , Rastine Merat 1\n and Gürkan Kaya 1,2\n1 Department of Dermatology and Venereology, University Hospital of Geneva, Rue Gabrielle-Perret-Gentil 4,\n1205 Genève, Switzerland\n2 Department of Clinical Pathology, University Hospital of Geneva, Rue Michel Servet 1,\n1205 Genève, Switzerland\n* Correspondence: sebastien.menzinger@hug.ch; Tel.: +41-795534228\nAbstract: The diagnosis, interpretation, and classification of melanocytic tumors is a very\ncomplex topic in the pathology and dermatopathology field that lacks standardization and\nis still subject to discordance and debate. Here, we review the definitions of dysplastic\nnevus and superficial atypical melanocytic proliferations and provide an overview of\nsome areas still subject to debate and some attempts of standardization. Furthermore, we\ndescribe an algorithmic classification, and provide some examples of clinico-pathological"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "high grade dysplasia melanocytic lesions",
+            "rank": 3,
+            "chunk_id": "nevi_doc_5",
+            "distance": 0.5833,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 1,
+            "text": "Anatomic Pathology / ORIGINAL ARTICLE\nAm J Clin Pathol 2001;115:194-204     195© American Society of Clinical Pathologists\ntotal number of melanocytic lesions, indicating that the\npathologic grading scheme may be useful.13 Further refine-\nment of the criteria for grading melanocytic dysplasia and\nexperience in grading are critical for accuracy in subcatego-\nrization of AMN.\n5 No systematic evaluation of the histologic\ncriteria for grading AMN is available to date.\nThis article describes a statistically validated system for\ngrading melanocytic dysplasia in a series of AMN, a third\nassociated with atypical-mole syndrome, prioritizing the\nhistologic features. We also performed a detailed comparison\nof histologic features in sporadic AMN with those associated\nwith the atypical-mole syndrome.\nMaterials and Methods\nWe retrospectively studied 123 consecutive lesions clini-\ncally diagnosed as atypical melanocytic nevi from 111\npatients biopsied between January 1, 1989, and December"
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "high grade dysplasia melanocytic lesions",
+            "rank": 4,
+            "chunk_id": "nevi_doc_60",
+            "distance": 0.6022,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "multiple melanocytic lesions having distinctive clinical and histological features associated\nwith an increased risk of developing melanoma [ 1]. Since then, many names have been\ngiven to this “syndrome” and to the associated melanocytic lesions described in these\npatients, now known as DN, or “nevus with architectural disorder and cytological atypia of\nmelanocytes” [2]. DN was then also described in nonfamilial and nonsyndromic settings [3].\nIts very concept, relevance, and definition have been subject to controversy ever since. DN\nis often recognized as an important risk factor for melanoma, as some studies have shown\na higher risk for people with DN exhibiting higher grades of melanocytic atypia [4–7].\nDespite its name, DN is not considered as a true dysplastic precursor or premalignant\nlesion, in comparison, for example, with actinic keratosis. Nevertheless, melanoma can\narise on a DN, but the individual/global risk seems to be very low [8–11]."
+          },
+          {
+            "subquery_n": 5,
+            "subquery": "high grade dysplasia melanocytic lesions",
+            "rank": 5,
+            "chunk_id": "nevi_doc_59",
+            "distance": 0.6096,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "some areas still subject to debate and some attempts of standardization. Furthermore, we\ndescribe an algorithmic classification, and provide some examples of clinico-pathological\ncorrelation. This step-by-step algorithm has an educational purpose and may automatize\nthe work of dermatopathologists. We hope that through further molecular studies, this\nfine-grained scheme will prove to be related to the biological behavior of these atypical\nmelanocytic lesions.\nKeywords: dysplastic nevus; superficial borderline atypical melanocytic lesion; melanoma;\ndermatoscopy; clinico-pathological correlation; classification\n1. Introduction\nThe clinico-pathological concept of dysplastic nevus (DN) was first described by\nClark et al. in 1978, initially under the term “B-K mole syndrome”, in families with\nmultiple melanocytic lesions having distinctive clinical and histological features associated\nwith an increased risk of developing melanoma [ 1]. Since then, many names have been"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "nuclear atypia melanocytic nevi grading",
+            "rank": 1,
+            "chunk_id": "nevi_doc_36",
+            "distance": 0.3904,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 6,
+            "text": "Major Nuclear Features\nPercent\n❚Figure 1❚Distribution of major nuclear and architectural\nfeatures by grading in atypical melanocytic nevi (AMN). A,\nAMN-mild showed 1 major nuclear abnormality or\nanisokaryosis; B, AMN-moderate, 2 major nuclear abnormali-\nties or 1 major nuclear and anisokaryosis; and C, AMN-\nsevere, 3 major nuclear abnormalities or 2 major nuclear\nabnormalities and anisokaryosis. Each bar represents the\npercentage of AMN with that feature.\nA B\nC\nDownloaded from https://academic.oup.com/ajcp/article/115/2/194/1757971 by NYU Stem School of Business user on 14 June 2025"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "nuclear atypia melanocytic nevi grading",
+            "rank": 2,
+            "chunk_id": "nevi_doc_35",
+            "distance": 0.4986,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 6,
+            "text": "regressive and proliferative processes. In this scenario, the\narchitectural atypia should be interpreted as the expression of\n0\n                      3 \n                  2 + Anisokaryosis\n              2 \n         1 + Anisokaryosis\n    1 \nAnisokaryosis\n1 2 \n100  \n90  \n80  \n70  \n60 \n50 \n40 \n30 \n20\n10\n0\nArchitectural Features\nMajor Nuclear Features\nPercent\n0\n                      3\n                  2 + Anisokaryosis\n              2 \n         1 + Anisokaryosis\n    1 \nAnisokaryosis\n1 \n2 \n100  \n90  \n80  \n70  \n60 \n50 \n40 \n30 \n20\n10\n0\nMajor Nuclear Features\nArchitectural Features\nPercent\n0\n                      3 \n                  2 + Anisokaryosis\n              2 \n         1 + Anisokaryosis\n    1 \nAnisokaryosis\n1 2 \n100  \n90  \n80  \n70  \n60 \n50 \n40 \n30 \n20\n10\n0\nArchitectural Features\nMajor Nuclear Features\nPercent\n❚Figure 1❚Distribution of major nuclear and architectural\nfeatures by grading in atypical melanocytic nevi (AMN). A,\nAMN-mild showed 1 major nuclear abnormality or"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "nuclear atypia melanocytic nevi grading",
+            "rank": 3,
+            "chunk_id": "nevi_doc_0",
+            "distance": 0.5563,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "Anatomic Pathology / GRADING ATYPICAL MELANOCYTIC NEVI\n194 Am J Clin Pathol 2001;115:194-204   © American Society of Clinical Pathologists\nCritical Analysis of Histologic Criteria for Grading Atypical\n(Dysplastic) Melanocytic Nevi\nLucia Pozo, MD,1 Mahmoud Naase, PhD,2 Rino Cerio, MD,1,2 Alfredo Blanes, MD,3\nand Salvador J. Diaz-Cano, MD2\nKey Words: Melanocytic nevus; Histologic grading; Severe dysplasia; Regression; Atypical-mole syndrome\nAbstract\nLow concordance in grading atypical (dysplastic)\nmelanocytic nevi (AMN) has been reported, and no\nsystematic evaluation is available. We studied 123 AMN\nwith architectural and cytologic atypia (40 associated\nwith atypical-mole syndrome), classified according to\nstandard criteria by 3 independent observers.\nHistologic variables included junctional and dermal\nsymmetry, lateral extension, cohesion and migration of\nepidermal melanocytes, maturation, regression, nuclear\nfeatures, nuclear grade, melanin, inflammatory"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "nuclear atypia melanocytic nevi grading",
+            "rank": 4,
+            "chunk_id": "nevi_doc_43",
+            "distance": 0.6093,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 8,
+            "text": "London Hospitals, London, England; the 2Department of\nPathology, St Bartholomew’s and the Royal London School of\nMedicine and Dentistry, London, England; and the \n3Department\nof Pathology, University Hospital of Malaga, Malaga, Spain.\nAddress reprint requests to Dr Diaz-Cano: Dept of\nHistopathology and Morbid Anatomy, St Bartholomew’s and the\nLondon NHS Trust, Whitechapel, London, E1 1BB, England.\nReferences\n1. Barnhill RL, Roush GC, Duray PH. Correlation of histologic\narchitectural and cytoplasmic features with nuclear atypia in\natypical (dysplastic) nevomelanocytic nevi. Hum Pathol.\n1990;21:51-58.\n2. Carey WP Jr, Thompson CJ, Synnestvedt M, et al. Dysplastic\nnevi as a melanoma risk factor in patients with familial\nmelanoma. Cancer. 1994;74:3118-3125.\n❚Table 2❚\nAccuracy in the Diagnosis of High-Grade Atypical\n(Dysplastic) Melanocytic Nevi (AMN) (AMN-Severe) by\nSignificant Histologic Features\n*\nLow-Grade High-Grade\nFeature AMN AMN\nJunctional pattern\nMixed 5 14\nNonmixed 87 17"
+          },
+          {
+            "subquery_n": 6,
+            "subquery": "nuclear atypia melanocytic nevi grading",
+            "rank": 5,
+            "chunk_id": "nevi_doc_24",
+            "distance": 0.634,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "vague, resulting in low concordance in AMN grading.\n5,6,19In\naddition, cases reported are heterogeneous regarding the\nrequirement of cytologic atypia.\n1,7,9,13\nThe grading system we propose provides a clear defini-\ntion with reliable histologic criteria useful for diagnosing\nhigh-grade AMN (AMN-severe), based on the study of 2\nmajor architectural features (junctional symmetry, presence\nand location of suprabasal melanocytes) and 3 major nuclear\nvariables (pleomorphism, chromatin pattern, and nucleolus\nprominence). The minimal requirements for the histologic\ndiagnosis of high-grade AMN would include an atypical\nmelanocyte proliferation with alterations in 1 architectural\nfeature and 2 nuclear features (along with anisokaryosis)\n(Image 1 and Figure 2). This working definition stresses the\nimportance of both architectural and cytologic atypia, priori-\ntizing the analysis based on the most specific criteria\n(referred to as major in the present series). Anisokaryosis is a"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "architectural disorder melanocytic nevi",
+            "rank": 1,
+            "chunk_id": "nevi_doc_61",
+            "distance": 0.5877,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "lesion, in comparison, for example, with actinic keratosis. Nevertheless, melanoma can\narise on a DN, but the individual/global risk seems to be very low [8–11].\nIn the fourth edition of the “WHO Classification of Skin Tumours” (2018), dysplastic\nnevi were defined as “a subset of melanocytic nevi that are clinically atypical and charac-\nterized histologically by architectural disorder and cytological atypia, always involving\ntheir junctional component. (. . .) Attribute of architectural disorder include the presence of\njunctional shoulders (lateral extension) adjacent to the dermal component (or the lesion\nDermatopathology 2025, 12, 3 https://doi.org/10.3390/dermatopathology12010003"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "architectural disorder melanocytic nevi",
+            "rank": 2,
+            "chunk_id": "nevi_doc_47",
+            "distance": 0.6394,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 9,
+            "text": "naevi: an interobserver study by the pathology subgroup of the\nEORTC Malignant Melanoma Cooperative Group. Eur J\nCancer. 1993;29A:831-839.\n7. Piepkorn M. A hypothesis incorporating the histologic\ncharacteristics of dysplastic nevi into the normal biological\ndevelopment of melanocytic nevi. Arch Dermatol.\n1990;126:514-518.\n8. Clemente C, Cochran AJ, Elder DE, et al. Histopathologic\ndiagnosis of dysplastic nevi: concordance among pathologists\nconvened by the World Health Organization Melanoma\nProgramme. Hum Pathol. 1991;22:313-319.\n9. Shea CR, Vollmer RT, Prieto VG. Correlating architectural\ndisorder and cytologic atypia in Clark (dysplastic)\nmelanocytic nevi. Hum Pathol. 1999;30:500-505.\n10. Pozo L, Diaz-Cano SJ. Tumor biology and screening in\nmalignant melanomas. Arch Dermatol. 2000;7:934-935.\n11. Barnhill RL. Tumors of melanocytes. In: Barnhill RL, ed.\nTextbook of Dermatopathology. New York, NY: McGraw-Hill;\n1998:537-591."
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "architectural disorder melanocytic nevi",
+            "rank": 3,
+            "chunk_id": "nevi_doc_190",
+            "distance": 0.7264,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 7,
+            "text": "providing more clearly defined guidelines for pathologists and clinicians in the treatment of \npatients with these melanocytic lesions. First of all, with respect to surgical intervention for \natypical nevi, we are striving to reduce the overall number of surgical procedures, in line \nwith increasing information, eg, that many lesions with lesser degrees of atypia (ie, mild \nto moderate atypia; low grade in the WHO 2018 Classification) need not, in general, be \nre-excised because of very low risk for recurrence as bona fide melanoma.28–32 In particular, \nBarnhill et al. Page 8\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "architectural disorder melanocytic nevi",
+            "rank": 4,
+            "chunk_id": "nevi_doc_0",
+            "distance": 0.7307,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "Anatomic Pathology / GRADING ATYPICAL MELANOCYTIC NEVI\n194 Am J Clin Pathol 2001;115:194-204   © American Society of Clinical Pathologists\nCritical Analysis of Histologic Criteria for Grading Atypical\n(Dysplastic) Melanocytic Nevi\nLucia Pozo, MD,1 Mahmoud Naase, PhD,2 Rino Cerio, MD,1,2 Alfredo Blanes, MD,3\nand Salvador J. Diaz-Cano, MD2\nKey Words: Melanocytic nevus; Histologic grading; Severe dysplasia; Regression; Atypical-mole syndrome\nAbstract\nLow concordance in grading atypical (dysplastic)\nmelanocytic nevi (AMN) has been reported, and no\nsystematic evaluation is available. We studied 123 AMN\nwith architectural and cytologic atypia (40 associated\nwith atypical-mole syndrome), classified according to\nstandard criteria by 3 independent observers.\nHistologic variables included junctional and dermal\nsymmetry, lateral extension, cohesion and migration of\nepidermal melanocytes, maturation, regression, nuclear\nfeatures, nuclear grade, melanin, inflammatory"
+          },
+          {
+            "subquery_n": 7,
+            "subquery": "architectural disorder melanocytic nevi",
+            "rank": 5,
+            "chunk_id": "nevi_doc_6",
+            "distance": 0.7343,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 1,
+            "text": "Materials and Methods\nWe retrospectively studied 123 consecutive lesions clini-\ncally diagnosed as atypical melanocytic nevi from 111\npatients biopsied between January 1, 1989, and December\n31, 1998, in St Bartholomew’s and the Royal London Hospi-\ntals, London, England. All nevi fulfilled the standard defini-\ntion of AMN\n3,14; the clinical records were reviewed for\npatient age, nevus location, and familial or personal history\nof atypical-mole syndrome or malignant melanoma. All\nspecimens were fixed in 10% buffered formalin, routinely\nprocessed, serially sectioned, and stained with H&E. All\nnevi showed architectural and cytologic atypia and were\nevaluated histologically and graded by 3 independent\nobservers (R.C., A.B., and S.J.D.-C.), according to standard\ncriteria (see “Degree of atypia,” below).\n1,5,8 In case of\ngrading disagreement, the lesions were discussed during\nsimultaneous inspection before final categorization. Repro-"
+          },
+          {
+            "subquery_n": 8,
+            "subquery": "junctional melanocytic hyperplasia",
+            "rank": 1,
+            "chunk_id": "nevi_doc_111",
+            "distance": 0.5879,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 10,
+            "text": "10x). Junctional component shows a continuous proliferation with solitary units along the dermal–\nepidermal junction, with severe cytonuclear atypia (abundant and dusty cytoplasm, and irregular\nnuclei withpronounced hyperchromasia (original magnification 20x) (D,E). There is a “shoulder sign”,\npapillaryfibroplasia, and a slight dermal lymphocytic infiltrate associated with melanophages ( C)."
+          },
+          {
+            "subquery_n": 8,
+            "subquery": "junctional melanocytic hyperplasia",
+            "rank": 2,
+            "chunk_id": "nevi_doc_233",
+            "distance": 0.6026,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 18,
+            "text": "Figure 2. \nMelanocytic Pathology Assessment Tool and Hierarchy for Diagnosis (MPATH-Dx) Version \n2.0 Class II: Compound Melanocytic Lesion, Probable Compound Dysplastic Nevus With \nHigh-grade Atypia, Uncertain\nThe lesion is poorly defined and measures 4 mm in diameter (A). The junctional and \ndermal components are paucicellular. The junctional component comprises scant basilar \nsingle cells and disordered junctional nesting with relatively sparse pagetoid spread of \nmelanocytes mostly confined to the lower half of the epidermis (B). Rare melanocytes (2–3 \ncells) reach the granular layer. No effacement of the epidermis is noted, and the epidermal \nrete-oriented pattern of melanocytic proliferation is maintained. Slight solar elastosis is \npresent. At high magnification, at least 5 junctional melanocytes contain nuclei more than \n1.5 times the size of surrounding resting basal keratinocytes (C). Because of scant pagetoid"
+          },
+          {
+            "subquery_n": 8,
+            "subquery": "junctional melanocytic hyperplasia",
+            "rank": 3,
+            "chunk_id": "nevi_doc_87",
+            "distance": 0.6306,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 5,
+            "text": "junctional atypia. The presence of a very disorganized intraepidermal melanocytic proliferation with\nnumerous solitary units and voluminous and irregular nests, with (inset) marked/severe cytonuclear\natypia (abundant cytoplasm, and hyperchromatic nuclei; original magnification 30x). There is\npapillary fibroplasia, and a slight dermal lymphocytic infiltrate associated with melanophages.\n(H) Melan-A/MART-1IHC (original magnification 10x) of the same lesion, showing the same features\nand pagetoid spread. (I) PRAME IHC (original magnification 10x) is negative. We discussed, as a\ndifferential diagnosis, the possibility of a melanoma in situ arising on a pre-existing dysplastic nevus\nin this case.\n• Cytoplasmic atypia: dirty cytoplasm, epithelioid morphology, vacuolated cytoplasm;"
+          },
+          {
+            "subquery_n": 8,
+            "subquery": "junctional melanocytic hyperplasia",
+            "rank": 4,
+            "chunk_id": "nevi_doc_86",
+            "distance": 0.6417,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 5,
+            "text": "component shows a very disorganized proliferation with solitary units and irregular nests, with (inset)\nmarked/severe cytonuclear atypia (abundant cytoplasm, and irregular nuclei with hyperchromasia;\noriginal magnification 40x). The dermal component shows maturation, without atypia, and with\na superficial congenital architecture. The “shoulder sign” is not evident in these pictures, there\nis papillary fibroplasia, and a slight dermal lymphocytic infiltrate associated with melanophages.\n(E) Melan-A/MART-1 (original magnification 10x) of the same lesion, showing the same features\nand some pagetoid spread. (F) PRAME (original magnification 10x) is negative. (G) Hematoxylin\nand eosin stain (original magnification 10x). Superficial borderline atypical melanocytic lesion with\njunctional atypia. The presence of a very disorganized intraepidermal melanocytic proliferation with\nnumerous solitary units and voluminous and irregular nests, with (inset) marked/severe cytonuclear"
+          },
+          {
+            "subquery_n": 8,
+            "subquery": "junctional melanocytic hyperplasia",
+            "rank": 5,
+            "chunk_id": "nevi_doc_9",
+            "distance": 0.6569,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 1,
+            "text": "criteria as junctional or compound.\n3. Lateral extension, studied by the presence and pattern\nof melanocyte proliferation extending at least 3 rete ridges or\n“pegs” beyond any dermal component. The pattern at this\nlevel was classified with the same criteria used for the\ngeneral junctional pattern.\n4. General junctional pattern. The pattern was classified\naccording to the predominant pattern as lentiginous (basilar\nmelanocytic hyperplasia mainly), nested (melanocyte nest\npredominating), or mixed lentiginous-nested.\n5. Junctional symmetry was judged by 2 separate issues:\n(1) symmetry evaluated by the number of involved rete\nridges beyond the dermal ridge at both ends (rete ridge\ndifferences >3 were considered evidence of asymmetry) and\n(2) symmetry judged by the junctional pattern at both ends of\nthe nevus (lentiginous, nested, and mixed). The presence of\nthe same pattern at both sides was considered evidence of\n“side-to-side symmetry.” Otherwise the lesion was registered\nas asymmetric."
+          },
+          {
+            "subquery_n": 9,
+            "subquery": "MPATH-Dx classification melanocytic lesions",
+            "rank": 1,
+            "chunk_id": "nevi_doc_231",
+            "distance": 0.2485,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 16,
+            "text": "The new MPATH-Dx version 2.0 schema is anticipated to provide a robust tool \nand adjunct for standardized diagnostic reporting of melanocytic lesions and patient \ntreatment.\nBarnhill et al. Page 17\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 9,
+            "subquery": "MPATH-Dx classification melanocytic lesions",
+            "rank": 2,
+            "chunk_id": "nevi_doc_170",
+            "distance": 0.3844,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 3,
+            "text": "We have directly witnessed how the implementation of the MPATH-Dx schema may \nfacilitate agreement and more standardized reporting of melanocytic lesions, foster greater \ncommunication and rapport with clinicians, and improve care delivered to patients at \nBarnhill et al. Page 4\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 9,
+            "subquery": "MPATH-Dx classification melanocytic lesions",
+            "rank": 3,
+            "chunk_id": "nevi_doc_205",
+            "distance": 0.3977,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 10,
+            "text": "could result in not only fewer patients burdened with the diagnosis of melanoma but also \ndiminished intervention for staging and therapy.\nLimitations\nA limitation of the MPATH-Dx V2.0 schema is the continued use of subjective \nmorphological criteria for the interpretation and classification of melanocytic lesions. \nHowever, this cannot be circumvented until a precise genetic alteration or alterations with \nBarnhill et al. Page 11\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 9,
+            "subquery": "MPATH-Dx classification melanocytic lesions",
+            "rank": 4,
+            "chunk_id": "nevi_doc_174",
+            "distance": 0.4885,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 4,
+            "text": "years about other pathways to melanoma and the appearance of the 4th edition of the WHO \nClassification of Skin Tumours have highlighted the need to modify the original MPATH-Dx \nsystem.20\nAn important related goal of the MPATH-Dx schema was not to supplant existing \nnomenclatures or classifications of (primarily) benign melanocytic lesions but rather to \nmake them more understandable and transparent by the standardized mapping of diverse \nterminologies into distinct MPATH-Dx classes. Thus, the MPATH-Dx schema is meant to \nfunction as an adjunct classification system to simplify diagnostic reporting and treatment \nrecommendations.\nAccordingly, following lengthy discussions and review with many colleagues and with \nthe final consensus of the Reducing Errors in Melanocytic Interpretations (REMI) and \nInternational Melanoma Pathology Study Group (IMPSG) investigators, we have effectively \nimplemented perceived changes that were needed. The improved MPATH-Dx V2.0 schema"
+          },
+          {
+            "subquery_n": 9,
+            "subquery": "MPATH-Dx classification melanocytic lesions",
+            "rank": 5,
+            "chunk_id": "nevi_doc_264",
+            "distance": 0.493,
+            "source": "Nevi MPath_1749902667339.pdf",
+            "page": 4,
+            "text": "Consensus was not always achieved in assigning individual lesions classified under the\nabove terms to unique treatment categories in the mapping scheme; however, their use may\nbe in providing the pathologist with the flexibility to determine which MPATH-Dx mapping\ncategory is deemed appropriate for prognosis and management purposes based on the\nperceived level of risk.\nDISCUSSION\nOur approach of iterative interpretation, review, and rereview of cases while revising the\nMPATH-Dx forms to ensure accurate capture of histologic criteria for the diagnosis and\ntreatment of melanocytic lesions yielded a histology reporting form and a diagnostic-\ntreatment mapping scheme. The MPATHDx histology reporting form may prove useful in\npopulation-based research on melanocytic lesions because it categorizes for researchers\noutside the field of dermatopathology a diversity of arcane nomenclature into categories\nbased on shared histogenesis, type and degree of atypia, or putative stage of tumor"
+          },
+          {
+            "subquery_n": 10,
+            "subquery": "dysplastic nevus histologic criteria",
+            "rank": 1,
+            "chunk_id": "nevi_doc_59",
+            "distance": 0.5897,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "some areas still subject to debate and some attempts of standardization. Furthermore, we\ndescribe an algorithmic classification, and provide some examples of clinico-pathological\ncorrelation. This step-by-step algorithm has an educational purpose and may automatize\nthe work of dermatopathologists. We hope that through further molecular studies, this\nfine-grained scheme will prove to be related to the biological behavior of these atypical\nmelanocytic lesions.\nKeywords: dysplastic nevus; superficial borderline atypical melanocytic lesion; melanoma;\ndermatoscopy; clinico-pathological correlation; classification\n1. Introduction\nThe clinico-pathological concept of dysplastic nevus (DN) was first described by\nClark et al. in 1978, initially under the term “B-K mole syndrome”, in families with\nmultiple melanocytic lesions having distinctive clinical and histological features associated\nwith an increased risk of developing melanoma [ 1]. Since then, many names have been"
+          },
+          {
+            "subquery_n": 10,
+            "subquery": "dysplastic nevus histologic criteria",
+            "rank": 2,
+            "chunk_id": "nevi_doc_46",
+            "distance": 0.6165,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 9,
+            "text": "Anatomic Pathology / ORIGINAL ARTICLE\nAm J Clin Pathol 2001;115:194-204     203© American Society of Clinical Pathologists\n3. Tucker MA, Halpern A, Holly EA, et al. Clinically recognized\ndysplastic nevi: a central risk factor for cutaneous melanoma.\nJAMA. 1997;277:1439-1444.\n4. Elder DE, Goldman LI, Goldman SC, et al. Dysplastic nevus\nsyndrome: a phenotypic association of sporadic cutaneous\nmelanoma. Cancer. 1980;46:1787-1794.\n5. Duncan LM, Berwick M, Bruijn JA, et al. Histopathologic\nrecognition and grading of dysplastic melanocytic nevi: an\ninterobserver agreement study. J Invest Dermatol.\n1993;100:318S-321S.\n6. de Wit PE, van’t Hof-Grootenboer B, Ruiter DJ, et al. Validity\nof the histopathological criteria used for diagnosing dysplastic\nnaevi: an interobserver study by the pathology subgroup of the\nEORTC Malignant Melanoma Cooperative Group. Eur J\nCancer. 1993;29A:831-839.\n7. Piepkorn M. A hypothesis incorporating the histologic"
+          },
+          {
+            "subquery_n": 10,
+            "subquery": "dysplastic nevus histologic criteria",
+            "rank": 3,
+            "chunk_id": "nevi_doc_26",
+            "distance": 0.6168,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "al,\n14 who reported that a careful clinical examination of indi-\nvidual melanocytic nevi separates severe dysplasia from low-\ngrade (mild or moderate) dysplasia in a high percentage of\nnevi from patients with the dysplastic nevus syndrome. A\ngeneral application of clinical and histologic grading systems\nwill improve the clinicopathologic correlation in AMN.\nThe grading system failed to distinguish AMN-mild\nfrom AMN-moderate. The features differentiating these two\nconditions were mainly architectural, some of them related\nto the association with the atypical-mole syndrome (see later\ntext). A low incidence of nuclear abnormalities and the\nabsence of prominent pleomorphism mainly characterized\nAMN-mild. However, a reliable classification system should\ninclude positive findings, lacking in this case for AMN-mild\nbecause anisokaryosis must be considered a general feature\nof AMN (it was present in 104/123 AMN [84.6%] in this\nseries), as suggested in a previous study.\n6 A similar situation"
+          },
+          {
+            "subquery_n": 10,
+            "subquery": "dysplastic nevus histologic criteria",
+            "rank": 4,
+            "chunk_id": "nevi_doc_146",
+            "distance": 0.6199,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 18,
+            "text": "13. Duncan, L.M.; Berwick, M.; Bruijn, J.A.; Byers, H.R.; Mihm, M.C.; Barnhill, R.L. Histopathologic Recognition and Grading of\nDysplastic Melanocytic Nevi: An Interobserver Agreement Study. J. Invest. Dermatol. 1993, 100, 318S–321S. [CrossRef]\n14. Weinstock, M.A.; Barnhill, R.L.; Rhodes, A.R.; Brodsky, G.L. Reliability of the histopathologic diagnosis of melanocytic dysplasia.\nThe Dysplastic Nevus Panel. Arch. Dermatol. 1997, 133, 953–958. [CrossRef]\n15. Pozo, L.; Naase, M.; Cerio, R.; Blanes, A.; Diaz-Cano, S.J. Critical Analysis of Histologic Criteria for Grading Atypical (Dysplastic)\nMelanocytic Nevi. Am. J. Clin. Pathol. 2001, 115, 194–204. [CrossRef] [PubMed]\n16. Barnhill, R.L.; Roush, G.C. Correlation of clinical and histopathologic features in clinically atypical melanocytic nevi. Cancer 1991,\n67, 3157–3164. [CrossRef] [PubMed]\n17. Drozdowski, R.; Spaccarelli, N.; Peters, M.S.; Grant-Kels, J.M. Dysplastic nevus part I: Historical perspective, classification, and"
+          },
+          {
+            "subquery_n": 10,
+            "subquery": "dysplastic nevus histologic criteria",
+            "rank": 5,
+            "chunk_id": "nevi_doc_61",
+            "distance": 0.6223,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "lesion, in comparison, for example, with actinic keratosis. Nevertheless, melanoma can\narise on a DN, but the individual/global risk seems to be very low [8–11].\nIn the fourth edition of the “WHO Classification of Skin Tumours” (2018), dysplastic\nnevi were defined as “a subset of melanocytic nevi that are clinically atypical and charac-\nterized histologically by architectural disorder and cytological atypia, always involving\ntheir junctional component. (. . .) Attribute of architectural disorder include the presence of\njunctional shoulders (lateral extension) adjacent to the dermal component (or the lesion\nDermatopathology 2025, 12, 3 https://doi.org/10.3390/dermatopathology12010003"
+          },
+          {
+            "subquery_n": 11,
+            "subquery": "melanocytic atypia grading system",
+            "rank": 1,
+            "chunk_id": "nevi_doc_72",
+            "distance": 0.552,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 2,
+            "text": "a higher grade of atypia, an immunohistochemistry analysis with a melanocytic marker\nis also performed. We routinely use Melan-A/MART-1 staining in cases with a suspicion\non the HE sections of marked to severe atypia, lentiginous proliferation, and pagetoid\nspread. Furthermore, if there are junctional and dermal atypia, we search for malignant\nmelanoma criteria (cytological, architectural, immunohistochemical). It is noteworthy that\nmelanocytic proliferations with mild to distinct junctional atypia never exhibit atypia in\nthe dermal component. DN with mild to marked atypia can be classified as “low-grade” or\nclass I in the MAPTH-Dx V2 classification schema. DN with severe atypia, even if these\natypia are only focally observed, can be classified as “high-grade” or class II."
+          },
+          {
+            "subquery_n": 11,
+            "subquery": "melanocytic atypia grading system",
+            "rank": 2,
+            "chunk_id": "nevi_doc_4",
+            "distance": 0.6324,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "melanocytic proliferation.\n1,11\nAny grading system must be able to consistently recog-\nnize 2 or more grades of atypia with biologic relevance.12\nThe subjective definition for grading of dysplasia in AMN\nhas resulted in no consensus on that matter, resulting in a\nconcordance ranging from 35% to 58% (kappa value, 0.38-\n0.47) for experienced dermatopathologists and from 16% to\n65% (kappa value, 0.05-0.24) for those with less experience.\nHowever, a statistically significant relationship has been\ndescribed between melanocytic dysplasia and the person’s\nDownloaded from https://academic.oup.com/ajcp/article/115/2/194/1757971 by NYU Stem School of Business user on 14 June 2025"
+          },
+          {
+            "subquery_n": 11,
+            "subquery": "melanocytic atypia grading system",
+            "rank": 3,
+            "chunk_id": "nevi_doc_0",
+            "distance": 0.6646,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 0,
+            "text": "Anatomic Pathology / GRADING ATYPICAL MELANOCYTIC NEVI\n194 Am J Clin Pathol 2001;115:194-204   © American Society of Clinical Pathologists\nCritical Analysis of Histologic Criteria for Grading Atypical\n(Dysplastic) Melanocytic Nevi\nLucia Pozo, MD,1 Mahmoud Naase, PhD,2 Rino Cerio, MD,1,2 Alfredo Blanes, MD,3\nand Salvador J. Diaz-Cano, MD2\nKey Words: Melanocytic nevus; Histologic grading; Severe dysplasia; Regression; Atypical-mole syndrome\nAbstract\nLow concordance in grading atypical (dysplastic)\nmelanocytic nevi (AMN) has been reported, and no\nsystematic evaluation is available. We studied 123 AMN\nwith architectural and cytologic atypia (40 associated\nwith atypical-mole syndrome), classified according to\nstandard criteria by 3 independent observers.\nHistologic variables included junctional and dermal\nsymmetry, lateral extension, cohesion and migration of\nepidermal melanocytes, maturation, regression, nuclear\nfeatures, nuclear grade, melanin, inflammatory"
+          },
+          {
+            "subquery_n": 11,
+            "subquery": "melanocytic atypia grading system",
+            "rank": 4,
+            "chunk_id": "nevi_doc_63",
+            "distance": 0.6652,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 1,
+            "text": "chromatin repartition, size of the nucleolus, and aspect of the cytoplasm [14]. Controversy\nexists regarding the use of architectural disorganization as a criterion for the grading. Nev-\nertheless, some classifications also use architectural criteria to grade the atypia [4,15,16];\nconsidering the following, for example: “lentiginous melanocytic hyperplasia (from discon-\ntinuous to confluent), upward melanocyte migration (little or no to fully pagetoid spread),\nnesting variation and bridging (few nests to confluent nests)” in addition to cytonuclear\ncriteria [15]. Cytologic atypia is often graded as mild, moderate, or severe. The grading\ncriteria published by the WHO in 2018 eliminated a “moderate” dysplasia category and\nsimplified grading to low-grade dysplasia and high-grade dysplasia [12,17].\nAnother group of benign melanocytic proliferations is known to show a certain degree\nof cytological and architectural atypia, sometimes with features overlapping with dysplastic"
+          },
+          {
+            "subquery_n": 11,
+            "subquery": "melanocytic atypia grading system",
+            "rank": 5,
+            "chunk_id": "nevi_doc_24",
+            "distance": 0.6726,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "vague, resulting in low concordance in AMN grading.\n5,6,19In\naddition, cases reported are heterogeneous regarding the\nrequirement of cytologic atypia.\n1,7,9,13\nThe grading system we propose provides a clear defini-\ntion with reliable histologic criteria useful for diagnosing\nhigh-grade AMN (AMN-severe), based on the study of 2\nmajor architectural features (junctional symmetry, presence\nand location of suprabasal melanocytes) and 3 major nuclear\nvariables (pleomorphism, chromatin pattern, and nucleolus\nprominence). The minimal requirements for the histologic\ndiagnosis of high-grade AMN would include an atypical\nmelanocyte proliferation with alterations in 1 architectural\nfeature and 2 nuclear features (along with anisokaryosis)\n(Image 1 and Figure 2). This working definition stresses the\nimportance of both architectural and cytologic atypia, priori-\ntizing the analysis based on the most specific criteria\n(referred to as major in the present series). Anisokaryosis is a"
+          },
+          {
+            "subquery_n": 12,
+            "subquery": "WHO classification dysplastic nevi",
+            "rank": 1,
+            "chunk_id": "nevi_doc_210",
+            "distance": 0.7435,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 11,
+            "text": "2021;48(6):733–738. doi:10.1111/cup.13873 [PubMed: 32935869] \n3. Duray PH, DerSimonian R, Barnhill R, et al. An analysis of interobserver recognition of the \nhistopathologic features of dysplastic nevi from a mixed group of nevomelanocytic lesions. J \nBarnhill et al. Page 12\nJAMA Netw Open. Author manuscript; available in PMC 2023 July 28.\nAuthor Manuscript Author Manuscript Author Manuscript Author Manuscript"
+          },
+          {
+            "subquery_n": 12,
+            "subquery": "WHO classification dysplastic nevi",
+            "rank": 2,
+            "chunk_id": "nevi_doc_61",
+            "distance": 0.7932,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 0,
+            "text": "lesion, in comparison, for example, with actinic keratosis. Nevertheless, melanoma can\narise on a DN, but the individual/global risk seems to be very low [8–11].\nIn the fourth edition of the “WHO Classification of Skin Tumours” (2018), dysplastic\nnevi were defined as “a subset of melanocytic nevi that are clinically atypical and charac-\nterized histologically by architectural disorder and cytological atypia, always involving\ntheir junctional component. (. . .) Attribute of architectural disorder include the presence of\njunctional shoulders (lateral extension) adjacent to the dermal component (or the lesion\nDermatopathology 2025, 12, 3 https://doi.org/10.3390/dermatopathology12010003"
+          },
+          {
+            "subquery_n": 12,
+            "subquery": "WHO classification dysplastic nevi",
+            "rank": 3,
+            "chunk_id": "nevi_doc_217",
+            "distance": 0.9337,
+            "source": "Nevi MPath 2_1749902667338.pdf",
+            "page": 13,
+            "text": "20. Elder DE, Massi D, Scolyer RA, Willemze R. WHO Classification of Skin Tumours. 4th ed. \nInternational Agency for Research on Cancer; 2018.\n21. Taylor LA, Eguchi MM, Reisch LM, et al. Histopathologic synoptic reporting of invasive \nmelanoma: how reliable are the data? Cancer. 2021;127(17):3125–3136. doi:10.1002/cncr.33612 \n[PubMed: 33945628] \n22. Rhodes AR, Mihm MC Jr, Weinstock MA. Dysplastic melanocytic nevi: a reproducible histologic \ndefinition emphasizing cellular morphology. Mod Pathol. 1989;2(4):306–319. [PubMed: 2762287] \n23. Xiong MY , Rabkin MS, Piepkorn MW, et al. Diameter of dysplastic nevi is a more robust \nbiomarker of increased melanoma risk than degree of histologic dysplasia: a case-control \nstudy. J Am Acad Dermatol. 2014;71(6):1257–1258.e4. doi:10.1016/j.jaad.2014.07.030 [PubMed: \n25454033] \n24. Bruijn JA, Berwick M, Mihm MC Jr, Barnhill RL. Common acquired melanocytic nevi, dysplastic"
+          },
+          {
+            "subquery_n": 12,
+            "subquery": "WHO classification dysplastic nevi",
+            "rank": 4,
+            "chunk_id": "nevi_doc_26",
+            "distance": 0.9392,
+            "source": "Nevi 2001_1749902667336.pdf",
+            "page": 4,
+            "text": "al,\n14 who reported that a careful clinical examination of indi-\nvidual melanocytic nevi separates severe dysplasia from low-\ngrade (mild or moderate) dysplasia in a high percentage of\nnevi from patients with the dysplastic nevus syndrome. A\ngeneral application of clinical and histologic grading systems\nwill improve the clinicopathologic correlation in AMN.\nThe grading system failed to distinguish AMN-mild\nfrom AMN-moderate. The features differentiating these two\nconditions were mainly architectural, some of them related\nto the association with the atypical-mole syndrome (see later\ntext). A low incidence of nuclear abnormalities and the\nabsence of prominent pleomorphism mainly characterized\nAMN-mild. However, a reliable classification system should\ninclude positive findings, lacking in this case for AMN-mild\nbecause anisokaryosis must be considered a general feature\nof AMN (it was present in 104/123 AMN [84.6%] in this\nseries), as suggested in a previous study.\n6 A similar situation"
+          },
+          {
+            "subquery_n": 12,
+            "subquery": "WHO classification dysplastic nevi",
+            "rank": 5,
+            "chunk_id": "nevi_doc_139",
+            "distance": 0.9493,
+            "source": "Nevi 2025_1749902667337.pdf",
+            "page": 17,
+            "text": "In this study, we describe an algorithmic classification of dysplastic nevi and superficial\nborderline atypical melanocytic proliferations, and provide examples of clinico-pathological\ncorrelation. Beyond its potential usefulness for routine practice in dermatopathology, we\nalso emphasize that our classification scheme should prove useful in the discovery and\nevaluation of prognostic markers for melanoma, which are lacking in our arsenal at a time\nwhen the indications for adjuvant treatments are steadily expanding. Indeed, even though,\nas previously discussed, the risk of DN transformation into melanoma is extremely low,\nand these lesions cannot be considered pre-cancerous from an epidemiological standpoint,\ntheir variability in cytological, and especially architectural, phenotype, as captured by our\nclassification scheme, necessarily reflects subtle biological differences. Our reasoning is as"
+          }
+        ],
+        "unique_chunk_ids": [
+          "nevi_doc_49",
+          "nevi_doc_0",
+          "nevi_doc_26",
+          "nevi_doc_190",
+          "nevi_doc_5",
+          "nevi_doc_21",
+          "nevi_doc_236",
+          "nevi_doc_58",
+          "nevi_doc_60",
+          "nevi_doc_59",
+          "nevi_doc_36",
+          "nevi_doc_35",
+          "nevi_doc_43",
+          "nevi_doc_24",
+          "nevi_doc_61",
+          "nevi_doc_47",
+          "nevi_doc_6",
+          "nevi_doc_111",
+          "nevi_doc_233",
+          "nevi_doc_87",
+          "nevi_doc_86",
+          "nevi_doc_9",
+          "nevi_doc_231",
+          "nevi_doc_170",
+          "nevi_doc_205",
+          "nevi_doc_174",
+          "nevi_doc_264",
+          "nevi_doc_46",
+          "nevi_doc_146",
+          "nevi_doc_72",
+          "nevi_doc_4",
+          "nevi_doc_63",
+          "nevi_doc_210",
+          "nevi_doc_217",
+          "nevi_doc_139"
+        ],
+        "unique_chunk_count": 35,
+        "duplicate_retrieval_count": 25,
+        "context_block_chars": 51782,
+        "context_block_sha256": "14e0177bbcbb128c15abf481cebdb6fe95ef5d362f1319d5cd6792d1bb83d5da"
+      },
+      "generation": {
+        "model_requested": "claude-opus-4-5-20251101",
+        "temperature": 0.1,
+        "max_tokens": 1500,
+        "system_template_text": "",
+        "system_template_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "user_template_text": "\nExpert Dermatopathologist. Analyze the image using the provided context:\n{context}\n\n### GRADING CRITERIA:\n- **Severe Dysplasia**: Grade as SEVERE if 3+ nuclear abnormalities OR ANY architectural high-risk feature (confluent hyperplasia, pagetoid spread, bridging nests, epidermal mitoses, nuclear size >=2x).\n- **Moderate Dysplasia**: Nuclear size 1.5x, some pleomorphism/chromatin clumping, well-developed nests.\n- **Mild Dysplasia**: Nuclear size 1x, minimal atypia, symmetric, normal maturation.\n\n### RULES:\n1. Nuclear pleomorphism is the KEY differentiator between mild and moderate.\n2. 3+ nuclear abnormalities = SEVERE.\n3. If features overlap moderate/severe, grade as SEVERE.\n\n### OUTPUT JSON ONLY:\n{{\n  \"traditional_grade\": \"Mild Dysplasia\" | \"Moderate Dysplasia\" | \"Severe Dysplasia\",\n  \"mpath_grade\": \"Low-Grade Dysplasia\" | \"High-Grade Dysplasia\",\n  \"confidence_level\": \"High\" | \"Medium\" | \"Low\",\n  \"nuclear_abnormality_count\": number,\n  \"architectural_features\": [\"feature 1\", \"feature 2\"],\n  \"cytological_features\": [\"feature 1\", \"feature 2\"],\n  \"grading_rationale\": \"short explanation\",\n  \"clinical_significance\": \"short assessment\"\n}}\n",
+        "user_template_sha256": "639f8f061121afba35f761fc90d0bdfbc6f9c70bd751ede2b7716cfd9ffac935"
+      },
+      "output_schema_fields": [
+        "traditional_grade",
+        "mpath_grade",
+        "confidence_level",
+        "nuclear_abnormality_count",
+        "architectural_features",
+        "cytological_features",
+        "grading_rationale",
+        "clinical_significance"
+      ]
+    }
+  }
+}

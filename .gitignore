@@ -1,0 +1,26 @@
+# Secrets
+.env
+.env.local
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+venv/
+.venv/
+*.egg-info/
+
+# Replit leftovers (safe to delete entirely)
+.cache/
+.pythonlibs/
+.local/
+.upm/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# NOTE: chroma_db/ and chroma_db_nevi/ are deliberately NOT ignored.
+# They are reproducibility artifacts for the published retrieval
+# distances. See CLAUDE.md, landmine 2.
