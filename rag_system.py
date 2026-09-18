@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader
 try:
@@ -13,8 +12,6 @@ except ImportError:  # pragma: no cover - older environments
 # SQLite older than the 3.35 chromadb requires.
 import sqlite_compat  # noqa: F401
 import chromadb
-import hashlib as _hashlib
-from chromadb.config import Settings
 
 # ── optional Streamlit ───────────────────────────────────────────────
 # v1 imported streamlit unconditionally and called st.info/st.success at

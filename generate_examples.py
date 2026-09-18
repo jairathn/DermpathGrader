@@ -12,7 +12,6 @@ No API key needed – it only touches ChromaDB and prints examples.
 To also run a live LLM call, set ANTHROPIC_API_KEY and use --live flag.
 """
 
-import sys
 import pathlib
 import csv
 import json
@@ -76,7 +75,7 @@ def print_query_patterns():
     for i, q in enumerate(NEVI_QUERIES, 1):
         print(f"   [{i:02d}] {q}")
 
-    print(f"""
+    print("""
   How these queries work
   ──────────────────────
   Each query string is embedded by ChromaDB's default embedding function
@@ -130,7 +129,7 @@ def print_retrieved_snippets():
             print(wrap(snippet_preview + ("…" if len(s["text"]) > 400 else "")))
 
     # ── Nevi: show first 3 queries ──
-    print(f"\n\n  ── Nevi Collection (chroma_db_nevi / nevi_grading_literature) ──")
+    print("\n\n  ── Nevi Collection (chroma_db_nevi / nevi_grading_literature) ──")
     nevi_data = query_chroma("./chroma_db_nevi", "nevi_grading_literature",
                              NEVI_QUERIES[:3], n_results=2)
 
@@ -307,8 +306,18 @@ def print_concordant_nonconcordant():
               "  real output once pasted into a document.\n")
 
 
+HOW_TO = """
+  1. python make_manifest.py --yes        freeze the run configuration
+  2. python run_tests.py --dry-run        validate every case, spend nothing
+  3. python run_tests.py                  the batch (resumable)
+  4. python verify_logging.py             audit before scoring
+  5. python join_and_score.py             concordance -> results/
+  6. python generate_examples.py          this report, now from real logs
+"""
+
+
 def print_how_to():
-    print(box("SECTION 5 — HOW TO CAPTURE LIVE EXAMPLES FROM YOUR OWN RUNS"))
+    print(box("SECTION 5 - HOW TO CAPTURE LIVE EXAMPLES FROM YOUR OWN RUNS"))
     print(HOW_TO)
 
 

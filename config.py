@@ -54,6 +54,18 @@ STREAM = True
 # plus a fixed prompt, and replicates measure what is left.
 TEMPERATURE = None
 
+# List price per million tokens for MODEL_ID, used only for the dry-run
+# estimate and the post-batch actual. Cache reads are billed at 10% of
+# input, which is why the scaffold lives in a cached system block.
+PRICE_USD_PER_MTOK = {
+    "input": 5.00,
+    "output": 25.00,
+    "cache_read": 0.50,
+    "cache_write": 6.25,
+}
+# Rough output size of one grading response, for the estimate only.
+EST_OUTPUT_TOKENS = 1500
+
 # ── Strata ───────────────────────────────────────────────────────────
 N_PER_STRATUM = 50
 
@@ -130,6 +142,14 @@ OUTBOUND_MEDIA_TYPE = "image/jpeg"
 ACCEPTED_IMAGE_SUFFIXES = (".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp")
 WSI_SUFFIXES = (".svs",)
 
+# ── Protocol history ─────────────────────────────────────────────────
+#   2.0  four magnifications, MPATH-Dx v2.0 classes as strata, Opus 5,
+#        structured outputs, melanoma subtyping
+#   2.1  scaffold moved to a cached system block; clinical fields added
+#        (adequacy, differential, ancillary studies; CSCC subtype, depth,
+#        Broders, high-risk features); transport retries and refusal /
+#        truncation recorded per case
+#
 # ── Retrieval (unchanged from v1 - see CLAUDE.md landmine 2) ─────────
 CHROMA_DIR = {"CSCC": "chroma_db", "Nevus": "chroma_db_nevi"}
 CHROMA_COLLECTION = {"CSCC": "scc_grading_literature",
@@ -152,5 +172,5 @@ TILE_ROOT = "test_images"
 # Bump whenever the prompt scaffold, schema, magnification set or model
 # changes. Written into every case log, so a mixed-protocol batch is
 # detectable after the fact instead of being silently pooled.
-PROTOCOL_VERSION = "2.0"
-LOG_VERSION = "2.0"
+PROTOCOL_VERSION = "2.1"
+LOG_VERSION = "2.1"

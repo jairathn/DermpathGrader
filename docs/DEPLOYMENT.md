@@ -59,6 +59,10 @@ Ordered by effort.
 5. Deploy. First boot takes a few minutes while dependencies install and
    the embedding model downloads.
 
+Before step 1, run `python doctor.py --ping` locally: it checks the
+stores, the manifest, the key and model access, and tells you what is
+missing in one screen.
+
 Then **Settings → Sharing** and add your researchers' email addresses.
 Do this before sending anyone the link: apps are public by default.
 

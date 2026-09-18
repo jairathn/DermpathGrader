@@ -17,7 +17,6 @@ by re-embedding the store.  Published distances would become invalid.
 
 import hashlib
 import json
-import os
 import pathlib
 import platform
 import sys
@@ -74,7 +73,7 @@ def fingerprint_collection(col) -> dict:
     id_fp      = sha256_str(id_block)
 
     # corpus fingerprint: sorted (chunk_id + "\n" + text) blocks joined by newline
-    pairs = sorted(zip(ids, docs), key=lambda x: x[0])
+    pairs = sorted(zip(ids, docs, strict=True), key=lambda x: x[0])
     corpus_block = "\n".join(f"{cid}\n{txt}" for cid, txt in pairs)
     corpus_fp    = sha256_str(corpus_block)
 
@@ -122,6 +121,7 @@ def source_doc_meta(col, pdf_files: list[str]) -> list[dict]:
     docs = []
     for pdf_path in pdf_files:
         filename = pathlib.Path(pdf_path).name
+        substituted = False
         if pathlib.Path(pdf_path).exists():
             file_sha = sha256_file(pdf_path)
             # Count pages with PyPDF
@@ -132,8 +132,17 @@ def source_doc_meta(col, pdf_files: list[str]) -> list[dict]:
             except Exception:
                 page_count = 0
         else:
-            file_sha   = ""
-            page_count = 0
+            # Lost PDF with a text substitute on disk: hash the substitute
+            # and say so. A blank sha256 would make the manifest claim
+            # nothing was used, which is worse than the truth.
+            txt_path = pathlib.Path(pdf_path).with_suffix(".txt")
+            if txt_path.exists():
+                file_sha = sha256_file(str(txt_path))
+                page_count = 0
+                substituted = True
+            else:
+                file_sha   = ""
+                page_count = 0
 
         # Match src_counts by any key that ends with the filename
         chunk_count = 0
@@ -141,12 +150,16 @@ def source_doc_meta(col, pdf_files: list[str]) -> list[dict]:
             if pathlib.Path(src).name == filename or src == pdf_path:
                 chunk_count += cnt
 
-        docs.append({
+        entry = {
             "filename":    filename,
             "sha256":      file_sha,
             "page_count":  page_count,
             "chunk_count": chunk_count,
-        })
+        }
+        if substituted:
+            entry["substituted"] = True
+            entry["substitute_filename"] = pathlib.Path(pdf_path).with_suffix(".txt").name
+        docs.append(entry)
     return docs
 
 
@@ -164,7 +177,7 @@ def run_retrieval(col, subqueries: list[str], n_results: int = 5) -> dict:
                 r["documents"][0],
                 r["metadatas"][0],
                 r["distances"][0],
-                r["ids"][0]), start=1):
+                r["ids"][0], strict=True), start=1):
             all_results.append({
                 "subquery_n": q_idx,
                 "subquery":   query,
@@ -213,28 +226,19 @@ def run_retrieval(col, subqueries: list[str], n_results: int = 5) -> dict:
 # ── prompt template extraction ────────────────────────────────────────────────
 
 def extract_templates(analyzer_module_path: str) -> tuple[str, str]:
-    """
-    Read the create_analysis_prompt() body from source to capture the
-    template text and SHA-256 before context substitution.
-    Returns (system_template_text, user_template_text).
-    The Anthropic calls in this codebase have no separate system parameter,
-    so system_template_text is always "".
-    """
-    src = pathlib.Path(analyzer_module_path).read_text(encoding="utf-8")
-    # Extract the string literal inside create_analysis_prompt
-    # We look for the triple-quoted prompt = f"""...""" block
-    import re
-    # Match the f-string assigned to prompt inside create_analysis_prompt
-    m = re.search(
-        r'def create_analysis_prompt.*?(?:prompt\s*=\s*|return\s+)f?"""(.*?)"""',
-        src, re.DOTALL
-    )
-    if m:
-        user_template = m.group(1)
-    else:
-        user_template = "(extraction failed – read source manually)"
+    """(system_template_text, user_template_text) for an analyzer.
 
-    return "", user_template   # system is always "" in this codebase
+    v2.1: imported from the analyzer module rather than regex-scraped from
+    its source, so the manifest records exactly the strings the code
+    formats at call time. `{context}` and the other placeholders are left
+    unfilled here on purpose: the template is what is frozen, the filled
+    prompt varies only by the retrieved context block, whose hash is
+    recorded separately.
+    """
+    import importlib
+    module = importlib.import_module(
+        pathlib.Path(analyzer_module_path).stem)
+    return module.SYSTEM_TEMPLATE, module.USER_INSTRUCTION
 
 
 # ── verification ──────────────────────────────────────────────────────────────
@@ -327,9 +331,24 @@ from nevi_analyzer import OUTPUT_SCHEMA_FIELDS as NEVUS_OUTPUT_SCHEMA
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def main():
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--yes", action="store_true",
+                    help="overwrite an existing manifest without prompting")
+    ap.add_argument("--accept-store-divergence", action="append", default=[],
+                    choices=["CSCC", "Nevus"], metavar="PATHWAY",
+                    help="write the manifest even though this pathway's store "
+                         "no longer matches the published values; the "
+                         "divergence is recorded in the manifest, not hidden. "
+                         "Needed for Nevus since the 2025 source PDF was lost "
+                         "(see chroma_db_nevi/PROVENANCE.md).")
+    args = ap.parse_args()
+
     manifest_path = pathlib.Path("run_manifest.json")
-    if manifest_path.exists():
+    if manifest_path.exists() and not args.yes:
         print("run_manifest.json already exists.")
+        if not sys.stdin.isatty():
+            sys.exit("Refusing to overwrite non-interactively; pass --yes.")
         ans = input("Overwrite? [y/N] ").strip().lower()
         if ans != "y":
             print("Aborted.")
@@ -433,7 +452,7 @@ def main():
                     "streamed":             config.STREAM,
                     "schema_enforced":      True,
                     "system_template_text": cscc_sys,
-                    "system_template_sha256": sha256_str(cscc_sys),   # always compute, even for ""
+                    "system_template_sha256": sha256_str(cscc_sys),
                     "user_template_text":   cscc_user,
                     "user_template_sha256": sha256_str(cscc_user),
                 },
@@ -466,7 +485,7 @@ def main():
                     "streamed":             config.STREAM,
                     "schema_enforced":      True,
                     "system_template_text": nevus_sys,
-                    "system_template_sha256": sha256_str(nevus_sys),   # always compute, even for ""
+                    "system_template_sha256": sha256_str(nevus_sys),
                     "user_template_text":   nevus_user,
                     "user_template_sha256": sha256_str(nevus_user),
                 },
@@ -475,20 +494,45 @@ def main():
         },
     }
 
-    # Verification
-    print("\nVerifying against published distances…")
-    all_errors = []
-    all_errors += verify_pathway("CSCC",  cscc_retrieval,  cscc_col)
-    all_errors += verify_pathway("Nevus", nevus_retrieval, nevus_col)
+    # Verification against the pre-migration published values, per pathway.
+    # A divergent pathway blocks the write unless explicitly accepted, and
+    # an accepted divergence is written INTO the manifest so every
+    # downstream reader can see it rather than having to know the history.
+    print("\nVerifying against published distances...")
+    blocking = []
+    for pathway, retrieval, col in (("CSCC", cscc_retrieval, cscc_col),
+                                    ("Nevus", nevus_retrieval, nevus_col)):
+        errors = verify_pathway(pathway, retrieval, col)
+        record = {
+            "reproduced": not errors,
+            "expected": EXPECTED[pathway],
+            "observed": {
+                "chunk_count": col.count(),
+                "subq1_top1_distance": retrieval["results"][0]["distance"]
+                if retrieval.get("results") else None,
+            },
+            "divergence": errors,
+            "accepted": (not errors) or pathway in args.accept_store_divergence,
+        }
+        manifest["pathways"][pathway]["published_reproduction"] = record
+        if errors and pathway in args.accept_store_divergence:
+            print(f"   {pathway}: DIVERGES from published values (accepted, "
+                  f"recorded in manifest):")
+            for e in errors:
+                print(f"      - {e}")
+        elif errors:
+            blocking += [f"{pathway}: {e}" for e in errors]
+        else:
+            print(f"   {pathway}: reproduces published values")
 
-    if all_errors:
-        print("\n❌  VERIFICATION FAILED:")
-        for e in all_errors:
-            print(f"   • {e}")
-        print("\nManifest NOT written. Resolve the above before proceeding.")
+    if blocking:
+        print("\nVERIFICATION FAILED:")
+        for e in blocking:
+            print(f"   - {e}")
+        print("\nManifest NOT written. Either restore the store, or pass "
+              "--accept-store-divergence <PATHWAY> to record the divergence "
+              "and proceed.")
         sys.exit(1)
-
-    print("✅  Verification passed.")
 
     # Write
     manifest_path.write_text(

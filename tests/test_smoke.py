@@ -134,13 +134,18 @@ def test_svs_is_rejected_before_the_api():
 
 def test_envelope_matches_the_images_sent():
     prepared = image_utils.prepare_case_images(_fake_case())
-    structure = image_utils.message_structure(prepared, "0" * 64)
-    blocks = structure[0]["blocks"]
+    structure = image_utils.message_structure(
+        prepared, system_sha256="a" * 64, user_sha256="b" * 64)
+    assert [m["role"] for m in structure] == ["system", "user"]
+    assert structure[0]["blocks"][0]["sha256"] == "a" * 64
+    assert structure[0]["blocks"][0]["cached"] is True
+    blocks = structure[1]["blocks"]
     images = [b for b in blocks if b["type"] == "image"]
     assert len(images) == len(config.MAGNIFICATIONS)
     assert [b["magnification"] for b in images] == list(config.MAGNIFICATIONS)
     assert [b["sha256"] for b in images] == [p.sent_sha256 for p in prepared]
-    assert blocks[-1]["role"] == "prompt"
+    assert blocks[-1]["role"] == "instruction"
+    assert blocks[-1]["sha256"] == "b" * 64
 
 
 def test_logger_records_four_images_and_refuses_overwrite():
@@ -151,7 +156,9 @@ def test_logger_records_four_images_and_refuses_overwrite():
     logger.set_request(model=config.MODEL_ID, max_tokens=config.MAX_TOKENS,
                        system_text="", user_text="p",
                        message_structure=image_utils.message_structure(
-                           prepared, hashlib.sha256(b"p").hexdigest()),
+                           prepared,
+                           system_sha256=hashlib.sha256(b"").hexdigest(),
+                           user_sha256=hashlib.sha256(b"p").hexdigest()),
                        thinking=config.THINKING, effort=config.EFFORT,
                        schema_enforced=True, output_schema_sha256="c" * 64)
     path = logger.save()

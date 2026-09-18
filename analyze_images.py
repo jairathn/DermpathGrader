@@ -11,15 +11,11 @@ Usage:
 """
 
 import argparse
-import base64
-import io
 import json
 import pathlib
-import sys
 
-from PIL import Image
 
-from grading_logger import CaseLogger, sha256_bytes, sha256_str
+from grading_logger import CaseLogger
 import image_utils
 
 

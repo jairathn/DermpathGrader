@@ -120,10 +120,18 @@ class CaseLogger:
                 "api_request_id": "",
                 "model_returned": "",
                 "stop_reason": "",
-                "usage": {"input_tokens": 0, "output_tokens": 0},
+                "stop_details": None,
+                "usage": {"input_tokens": 0, "output_tokens": 0,
+                          "cache_read_input_tokens": 0,
+                          "cache_creation_input_tokens": 0},
                 "latency_ms": 0,
                 "raw_text": "",
             },
+
+            # Populated only when the call did not yield a grade. A failed
+            # case still gets a log: the request that was attempted, the
+            # error class, and for a refusal the API's stated category.
+            "failure": None,
 
             "parsing": {
                 "strategy_used": "structured_output",
@@ -204,17 +212,50 @@ class CaseLogger:
         })
 
     def set_response(self, *, api_request_id: str, model_returned: str,
-                     stop_reason: str, input_tokens: int, output_tokens: int,
-                     latency_ms: int, raw_text: str) -> None:
+                     stop_reason: str, latency_ms: int, raw_text: str,
+                     usage: Optional[dict] = None,
+                     stop_details: Optional[dict] = None,
+                     input_tokens: Optional[int] = None,
+                     output_tokens: Optional[int] = None) -> None:
+        if usage is None:
+            usage = {"input_tokens": input_tokens or 0,
+                     "output_tokens": output_tokens or 0}
+        merged = dict(self._record["response"]["usage"])
+        merged.update(usage)
         self._record["response"].update({
             "api_request_id": api_request_id,
             "model_returned": model_returned,
             "stop_reason": stop_reason,
-            "usage": {"input_tokens": input_tokens,
-                      "output_tokens": output_tokens},
+            "stop_details": stop_details,
+            "usage": merged,
             "latency_ms": latency_ms,
             "raw_text": raw_text,
         })
+
+    def set_attempt(self, attempt: int,
+                    prior_attempt_errors: Optional[list[str]] = None) -> None:
+        """How many tries the transport needed, and what the failures were."""
+        self._record["request"]["attempt"] = attempt
+        self._record["request"]["prior_attempt_errors"] = list(
+            prior_attempt_errors or [])
+
+    def set_failure(self, exc: BaseException) -> None:
+        """Record why no grade was produced. The log is still saved."""
+        record: dict[str, Any] = {
+            "error_class": type(exc).__name__,
+            "message": str(exc),
+        }
+        for attr in ("category", "explanation"):
+            if hasattr(exc, attr):
+                record[attr] = getattr(exc, attr)
+        self._record["failure"] = record
+        self._record["parsing"].update({
+            "strategy_used": "failed",
+            "fallback_invoked": False,
+            "parse_errors": [str(exc)],
+            "parsed": {},
+        })
+        self.add_error(f"{type(exc).__name__}: {exc}")
 
     def set_parsing(self, *, strategy_used: str, fallback_invoked: bool,
                     parse_errors: list[str], parsed: dict[str, Any]) -> None:

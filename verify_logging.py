@@ -19,7 +19,7 @@ import json
 import config
 import pathlib
 import sys
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 # ── check accumulator ─────────────────────────────────────────────────────────
 
@@ -91,9 +91,13 @@ def check_manifest(m: dict) -> dict:
     """Run all manifest checks. Returns {pathway: context_block_sha256}."""
 
     # ── top-level structure ───────────────────────────────────────────────────
-    check("M01", m.get("manifest_version") == "1.0",
-          "manifest_version == 1.0",
-          f"manifest_version expected '1.0', got {m.get('manifest_version')!r}")
+    check("M01", m.get("manifest_version") == "2.0",
+          "manifest_version == 2.0",
+          f"manifest_version expected '2.0', got {m.get('manifest_version')!r}")
+    check("M01b", m.get("protocol_version") == config.PROTOCOL_VERSION,
+          f"manifest protocol_version == {config.PROTOCOL_VERSION}",
+          f"manifest protocol_version = {m.get('protocol_version')!r}, code is "
+          f"{config.PROTOCOL_VERSION!r}; re-run make_manifest.py --yes")
 
     check("M02", bool(m.get("session_id")),
           "session_id present and non-empty",
@@ -140,9 +144,23 @@ def check_manifest(m: dict) -> dict:
         check(f"{pfx}V02", bool(vs.get("collection")),
               f"{pw} vector_store.collection present",
               f"{pw} vector_store.collection missing")
-        check(f"{pfx}V03", vs.get("chunk_count") == exp["chunk_count"],
-              f"{pw} chunk_count == {exp['chunk_count']}",
-              f"{pw} chunk_count expected {exp['chunk_count']}, got {vs.get('chunk_count')}")
+        repro = p.get("published_reproduction", {})
+        if vs.get("chunk_count") == exp["chunk_count"]:
+            check(f"{pfx}V03", True,
+                  f"{pw} chunk_count == {exp['chunk_count']} (published value)", "")
+        elif repro.get("accepted") and not repro.get("reproduced"):
+            # Divergence was declared at manifest time and is on the record.
+            warn(f"{pfx}V03", False,
+                 "",
+                 f"{pw} chunk_count is {vs.get('chunk_count')}, published value "
+                 f"was {exp['chunk_count']}; divergence accepted and recorded in "
+                 f"manifest.published_reproduction. Do not pool {pw} retrieval "
+                 f"distances with pre-migration ones.")
+        else:
+            check(f"{pfx}V03", False, "",
+                  f"{pw} chunk_count expected {exp['chunk_count']}, got "
+                  f"{vs.get('chunk_count')}, and the divergence was not accepted "
+                  f"at manifest time (make_manifest.py --accept-store-divergence)")
         check(f"{pfx}V04", _is_sha256(vs.get("chunk_id_fingerprint_sha256","")),
               f"{pw} chunk_id_fingerprint_sha256 is 64-char hex",
               f"{pw} chunk_id_fingerprint_sha256 missing or malformed")
@@ -180,6 +198,11 @@ def check_manifest(m: dict) -> dict:
             check(f"{pfx}V13.{di}", _is_sha256(doc.get("sha256","")),
                   f"{pw} source_documents[{di}].sha256 is 64-char hex",
                   f"{pw} source_documents[{di}].sha256 missing or malformed")
+            if doc.get("substituted"):
+                warn(f"{pfx}V14.{di}", False, "",
+                     f"{pw} source_documents[{di}] ({doc.get('filename')}) is a "
+                     f"TEXT SUBSTITUTE for a lost PDF; chunk boundaries differ "
+                     f"from the original and every later chunk id has shifted")
 
         # retrieval
         ret = p.get("retrieval", {})
@@ -203,7 +226,7 @@ def check_manifest(m: dict) -> dict:
         empty_chunk_ids  = 0
         empty_texts      = 0
         bad_distances    = 0
-        for ri, r in enumerate(results):
+        for _ri, r in enumerate(results):
             missing = required_result_keys - set(r.keys())
             if missing:
                 missing_keys_any = True
@@ -265,13 +288,22 @@ def check_manifest(m: dict) -> dict:
         check(f"{pfx}G01", bool(gen.get("model_requested")),
               f"{pw} generation.model_requested = {gen.get('model_requested')!r}",
               f"{pw} generation.model_requested missing")
-        check(f"{pfx}G02", gen.get("temperature") == 0.1,
-              f"{pw} generation.temperature == 0.1",
-              f"{pw} generation.temperature = {gen.get('temperature')} (expected 0.1)")
-        check(f"{pfx}G03", isinstance(gen.get("max_tokens"), int) and gen["max_tokens"] >= 1500,
-              f"{pw} generation.max_tokens = {gen.get('max_tokens')} (>= 1500)",
-              f"{pw} generation.max_tokens = {gen.get('max_tokens')} — "
-              "values < 1500 risk truncation on complex schemas, raising the fallback rate")
+        check(f"{pfx}G02", gen.get("temperature") is None,
+              f"{pw} generation.temperature is null (not sent on this model family)",
+              f"{pw} generation.temperature = {gen.get('temperature')!r}; sampling "
+              "parameters are rejected by this model and must not be recorded "
+              "as if applied")
+        check(f"{pfx}G02b", gen.get("schema_enforced") is True
+              and isinstance(gen.get("thinking"), dict),
+              f"{pw} generation records schema_enforced and thinking",
+              f"{pw} generation.schema_enforced={gen.get('schema_enforced')!r} "
+              f"thinking={gen.get('thinking')!r}")
+        check(f"{pfx}G03", isinstance(gen.get("max_tokens"), int)
+              and gen["max_tokens"] >= config.MAX_TOKENS,
+              f"{pw} generation.max_tokens = {gen.get('max_tokens')} "
+              f"(>= {config.MAX_TOKENS})",
+              f"{pw} generation.max_tokens = {gen.get('max_tokens')}; below "
+              f"config.MAX_TOKENS={config.MAX_TOKENS} the v2.1 schema can truncate")
 
         sys_tpl  = gen.get("system_template_text",  "")
         user_tpl = gen.get("user_template_text",    "")
@@ -312,29 +344,31 @@ def check_manifest(m: dict) -> dict:
 # ── per-case log checks ───────────────────────────────────────────────────────
 
 CSCC_PARSED_SCHEMA = {
-    "primary_grade": str, "confidence_level": str,
+    "primary_grade": str, "broders_grade": int, "specimen_adequacy": str,
+    "histologic_subtype": str, "depth_of_invasion": str,
+    "high_risk_features": list, "confidence_level": str,
     "keratinization_present": (bool, type(None)),
     "atypia_level": (str, type(None)),
-    "key_features": list,
-    "magnification_evidence": list,
+    "differential_diagnosis": list, "recommended_ancillary_studies": list,
+    "key_features": list, "magnification_evidence": list,
     "additional_observations": (str, type(None)),
+    "consistency_flags": list, "internally_consistent": bool,
 }
 
 NEVI_PARSED_SCHEMA = {
-    "mpath_dx_v2_class": str,
-    "lesion_category": str,
-    "dysplasia_grade": str,
-    "melanoma_subtype": str,
-    "melanoma_histologic_subtype": str,
+    "mpath_dx_v2_class": str, "lesion_category": str,
+    "specimen_adequacy": str, "dysplasia_grade": str,
+    "melanoma_subtype": str, "melanoma_histologic_subtype": str,
     "breslow_estimate_mm": (int, float, type(None)),
     "ulceration_present": (bool, type(None)),
     "mitoses_per_mm2": (int, float, type(None)),
     "confidence_level": str,
-    "architectural_features": list,
-    "cytological_features": list,
+    "differential_diagnosis": list, "recommended_ancillary_studies": list,
+    "architectural_features": list, "cytological_features": list,
     "magnification_evidence": list,
     "grading_rationale": (str, type(None)),
     "clinical_significance": (str, type(None)),
+    "consistency_flags": list, "internally_consistent": bool,
 }
 
 VALID_PARSE_STRATEGIES = {
@@ -530,7 +564,7 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
 
     log_ctx_sha = ret.get("context_block_sha256", "")
     check(f"[{pfx}] L18", _is_sha256(log_ctx_sha),
-          f"retrieval.context_block_sha256 is 64-char hex",
+          "retrieval.context_block_sha256 is 64-char hex",
           "retrieval.context_block_sha256 missing or malformed — "
           "this is the per-case invariance anchor")
 
@@ -597,7 +631,7 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
 
     # system_sha256 reproducibility (even when system_text is empty)
     check(f"[{pfx}] L25", _sha256(sys_text) == sys_sha,
-          f"request.system_sha256 reproduces from system_text",
+          "request.system_sha256 reproduces from system_text",
           f"request.system_sha256 does not match sha256(system_text)  "
           f"stored={sys_sha[:16]}… expected={_sha256(sys_text)[:16]}…")
 
@@ -613,64 +647,60 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
 
     # message_structure
     ms = req.get("message_structure", [])
-    check(f"[{pfx}] L28", isinstance(ms, list) and len(ms) == 1,
-          f"request.message_structure is list with 1 entry",
-          f"request.message_structure has {len(ms) if isinstance(ms,list) else 'non-list'} entries (expected 1)")
+    check(f"[{pfx}] L28", isinstance(ms, list) and len(ms) == 2
+          and [m.get("role") for m in ms] == ["system", "user"],
+          "request.message_structure is [system, user]",
+          f"request.message_structure roles = "
+          f"{[m.get('role') for m in ms] if isinstance(ms, list) else 'non-list'}"
+          ", expected [system, user] (v2.1: cached scaffold in system)")
 
-    if isinstance(ms, list) and len(ms) == 1:
-        msg = ms[0]
-        check(f"[{pfx}] L29", msg.get("role") == "user",
-              "message_structure[0].role == 'user'",
-              f"message_structure[0].role = {msg.get('role')!r}")
+    if isinstance(ms, list) and len(ms) == 2:
+        sys_blocks = ms[0].get("blocks", [])
+        check(f"[{pfx}] L29", len(sys_blocks) == 1
+              and sys_blocks[0].get("sha256") == sys_sha
+              and sys_blocks[0].get("cached") is True,
+              "system scaffold block sha256 == request.system_sha256, cached",
+              "system scaffold block missing, uncached, or its sha256 does "
+              "not match request.system_sha256")
 
-        blocks = msg.get("blocks", [])
+        blocks = ms[1].get("blocks", [])
         text_blocks = [b for b in blocks if b.get("type") == "text"]
         image_blocks = [b for b in blocks if b.get("type") == "image"]
         n_mags = len(config.REQUIRED_MAGNIFICATIONS)
 
-        # v2.0 envelope: one caption per image, then the images, then the
-        # prompt. 4 captions + 4 images + 1 prompt = 9 blocks.
         check(f"[{pfx}] L30", len(image_blocks) == n_mags,
-              f"message_structure has {n_mags} image blocks",
-              f"message_structure has {len(image_blocks)} image blocks, "
-              f"expected {n_mags}")
+              f"user turn has {n_mags} image blocks",
+              f"user turn has {len(image_blocks)} image blocks, expected {n_mags}")
 
         check(f"[{pfx}] L30b", len(text_blocks) == n_mags + 1,
-              f"message_structure has {n_mags + 1} text blocks "
-              f"({n_mags} captions + 1 prompt)",
-              f"message_structure has {len(text_blocks)} text blocks, "
-              f"expected {n_mags + 1}. Unlabelled images in a multi-image "
-              "request get conflated, so every image needs its caption.")
+              f"user turn has {n_mags + 1} text blocks "
+              f"({n_mags} captions + 1 instruction)",
+              f"user turn has {len(text_blocks)} text blocks, expected "
+              f"{n_mags + 1}. Unlabelled images in a multi-image request get "
+              "conflated, so every image needs its caption.")
 
-        prompt_blocks = [b for b in text_blocks if b.get("role") == "prompt"]
-        check(f"[{pfx}] L31", len(prompt_blocks) == 1
-              and prompt_blocks[0].get("sha256") == user_sha,
-              "message_structure prompt block sha256 == request.user_sha256",
-              "message_structure prompt block missing or its sha256 does not "
-              "match request.user_sha256 - the envelope is not reproducible")
+        instr = [b for b in text_blocks if b.get("role") == "instruction"]
+        check(f"[{pfx}] L31", len(instr) == 1 and instr[0].get("sha256") == user_sha
+              and blocks and blocks[-1] is instr[0],
+              "instruction block is last and its sha256 == request.user_sha256",
+              "instruction block missing, not last, or sha256 != user_sha256")
 
-        # Each image block must match the corresponding images[] entry, in
-        # order. A mismatch means the log describes a different payload than
-        # the one that was sent.
         logged_shas = [i.get("sent_sha256") for i in images]
         envelope_shas = [b.get("sha256") for b in image_blocks]
         check(f"[{pfx}] L32", all(_is_sha256(x or "") for x in envelope_shas),
-              "all message_structure image block sha256 are 64-char hex",
-              "one or more message_structure image sha256 missing/malformed")
-
+              "all envelope image sha256 are 64-char hex",
+              "one or more envelope image sha256 missing/malformed")
         check(f"[{pfx}] L33", envelope_shas == logged_shas,
-              "message_structure image sha256 list == images[].sent_sha256",
+              "envelope image sha256 list == images[].sent_sha256",
               f"envelope image hashes {[(x or '')[:8] for x in envelope_shas]} "
               f"!= logged {[(x or '')[:8] for x in logged_shas]} - the images "
               "in the envelope are not the images recorded for this case")
-
         envelope_mags = [b.get("magnification") for b in image_blocks]
         check(f"[{pfx}] L33b",
               envelope_mags == list(config.REQUIRED_MAGNIFICATIONS),
-              f"message_structure image order == "
-              f"{list(config.REQUIRED_MAGNIFICATIONS)}",
-              f"message_structure image order = {envelope_mags}; presentation "
-              "order is part of the protocol and must not vary between cases")
+              f"envelope image order == {list(config.REQUIRED_MAGNIFICATIONS)}",
+              f"envelope image order = {envelope_mags}; presentation order is "
+              "part of the protocol and must not vary between cases")
 
     check(f"[{pfx}] L34", isinstance(req.get("attempt"), int) and req["attempt"] >= 1,
           f"request.attempt = {req.get('attempt')}",
@@ -679,6 +709,37 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
     check(f"[{pfx}] L35", isinstance(req.get("prior_attempt_errors"), list),
           "request.prior_attempt_errors is list",
           "request.prior_attempt_errors is not a list")
+
+    # ── failed case: no response to check, but the record must be complete ──
+    failure = log.get("failure")
+    if failure:
+        check(f"[{pfx}] F01", bool(failure.get("error_class")),
+              f"failure.error_class = {failure.get('error_class')!r}",
+              "failure.error_class missing - a failed case must say why")
+        check(f"[{pfx}] F02", bool(failure.get("message")),
+              "failure.message present",
+              "failure.message missing")
+        check(f"[{pfx}] F03",
+              log.get("parsing", {}).get("strategy_used") == "failed"
+              and not log.get("parsing", {}).get("parsed"),
+              "parsing marks the case as failed with no parsed grade",
+              "a failed case carries a parsed grade - the failure record and "
+              "the parsing record disagree, and the scorer could pick it up")
+        check(f"[{pfx}] F04", bool(req.get("user_sha256")) and bool(
+            log.get("image_set", {}).get("set_sha256")),
+              "failed case still records the request and image set attempted",
+              "failed case is missing the request or image set - the attempt "
+              "is not reproducible")
+        if failure.get("error_class") == "GradingRefused":
+            warn(f"[{pfx}] F05", False, "",
+                 f"case was REFUSED by the model (category "
+                 f"{failure.get('category')!r}); it has no grade and is "
+                 "excluded from concordance. Report the refusal count.")
+        else:
+            warn(f"[{pfx}] F05", False, "",
+                 f"case produced no grade ({failure.get('error_class')}); "
+                 "excluded from concordance")
+        return
 
     # ── response ──────────────────────────────────────────────────────────────
     resp = log.get("response", {})
@@ -700,7 +761,7 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
 
     warn(f"[{pfx}] L39", resp.get("stop_reason") != "max_tokens",
          f"response.stop_reason != max_tokens (= {resp.get('stop_reason')!r})",
-         f"response.stop_reason == 'max_tokens' — output was truncated; "
+         "response.stop_reason == 'max_tokens' — output was truncated; "
          "JSON is likely malformed and parser fallback fired. "
          "Raise max_tokens before running remaining cases.")
 
@@ -739,7 +800,7 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
 
     warn(f"[{pfx}] L46", strategy != "keyword_inference",
          f"parsing.strategy_used = {strategy!r} (structured JSON)",
-         f"parsing.strategy_used = 'keyword_inference' — "
+         "parsing.strategy_used = 'keyword_inference' — "
          "grade was inferred from prose keywords, not the model's structured output; "
          "this case must be flagged in parser_fallback_summary.csv")
 
@@ -820,8 +881,10 @@ def main():
     log_paths = args.log
     if not log_paths:
         # Auto-discover all logs if none specified
-        discovered = sorted(pathlib.Path("analysis_logs").rglob("*.json")) \
-                     if pathlib.Path("analysis_logs").exists() else []
+        root = pathlib.Path(config.LOG_ROOT)
+        discovered = sorted(
+            p for pw in config.PATHWAYS
+            for p in (root / pw).glob("*__rep*.json")) if root.exists() else []
         if discovered:
             print(f"\n  No --log flags; auto-discovered {len(discovered)} log file(s)")
             log_paths = [str(p) for p in discovered]
@@ -857,7 +920,7 @@ def main():
         if _warn_count > 0:
             print(f"\n  ⚠️   {_warn_count} warning(s). Review before proceeding.")
         else:
-            print(f"\n  ✅  All checks PASSED.")
+            print("\n  ✅  All checks PASSED.")
         sys.exit(0)
 
 

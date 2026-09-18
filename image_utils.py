@@ -42,6 +42,19 @@ from PIL import Image
 
 import config
 
+# Decompression-bomb guard. PIL's default warns at ~89 MP and raises at
+# ~178 MP; a 40x tile exported at full sensor resolution can legitimately
+# approach that, while a crafted file could exhaust memory long before
+# the encoder ran. 400 MP is far above any real tile and far below what
+# would take the process down.
+Image.MAX_IMAGE_PIXELS = 400_000_000
+MAX_SOURCE_EDGE_PX = 25_000
+
+# Formats PIL may report for a file we will accept. Checked from the
+# decoded header, not the filename: a renamed file is the common case,
+# not the adversarial one.
+ACCEPTED_PIL_FORMATS = ("JPEG", "PNG", "TIFF", "BMP", "MPO")
+
 
 # ── data model ───────────────────────────────────────────────────────
 
@@ -171,7 +184,33 @@ def prepare_image(source: str | pathlib.Path | bytes,
 
     source_sha = hashlib.sha256(raw).hexdigest()
 
+    if not raw:
+        raise ImagePreparationError(f"{display_name}: empty file")
+
+    try:
+        with Image.open(io.BytesIO(raw)) as probe:
+            fmt = probe.format
+            probe.verify()          # header/structure check, cheap
+    except Image.DecompressionBombError as exc:
+        raise ImagePreparationError(
+            f"{display_name}: image exceeds the pixel limit "
+            f"({exc}); export the tile at a smaller size") from exc
+    except Exception as exc:
+        raise ImagePreparationError(
+            f"{display_name}: not a readable image ({exc})") from exc
+
+    if fmt not in ACCEPTED_PIL_FORMATS:
+        raise ImagePreparationError(
+            f"{display_name}: decoded as {fmt!r}, not an accepted format "
+            f"{ACCEPTED_PIL_FORMATS}; the file extension is not trusted")
+
+    # verify() leaves the image unusable; reopen for the real decode.
     with Image.open(io.BytesIO(raw)) as opened:
+        if max(opened.size) > MAX_SOURCE_EDGE_PX:
+            raise ImagePreparationError(
+                f"{display_name}: {opened.size[0]}x{opened.size[1]} px "
+                f"exceeds {MAX_SOURCE_EDGE_PX} px on an edge; this is a "
+                f"whole-slide export, not a tile")
         opened.load()
         source_dims = list(opened.size)
         rgb = _to_rgb(opened)
@@ -264,12 +303,16 @@ def build_image_content_blocks(prepared: list[PreparedImage]
     return blocks
 
 
-def message_structure(prepared: list[PreparedImage],
-                      prompt_sha256: str) -> list[dict[str, Any]]:
+def message_structure(prepared: list[PreparedImage], *,
+                      system_sha256: str,
+                      user_sha256: str) -> list[dict[str, Any]]:
     """The `request.message_structure` record for the case log.
 
-    Mirrors the real block order so the verifier can confirm that what
-    was logged is what was sent.
+    Mirrors the real request: one system entry holding the cached
+    scaffold, then one user entry with a caption before each image and
+    the short instruction last. The verifier checks this against
+    `system_sha256`, `user_sha256` and `images[]`, so what was logged is
+    provably what was sent.
     """
     blocks: list[dict[str, Any]] = []
     total = len(prepared)
@@ -289,8 +332,14 @@ def message_structure(prepared: list[PreparedImage],
             "media_type": image.sent_media_type,
             "sha256": image.sent_sha256,
         })
-    blocks.append({"type": "text", "role": "prompt", "sha256": prompt_sha256})
-    return [{"role": "user", "blocks": blocks}]
+    blocks.append({"type": "text", "role": "instruction",
+                   "sha256": user_sha256})
+    return [
+        {"role": "system", "blocks": [
+            {"type": "text", "role": "scaffold", "cached": True,
+             "sha256": system_sha256}]},
+        {"role": "user", "blocks": blocks},
+    ]
 
 
 # ── Streamlit-facing helpers ─────────────────────────────────────────
@@ -310,4 +359,14 @@ def validate_upload(uploaded_file) -> str | None:
     if suffix not in config.ACCEPTED_IMAGE_SUFFIXES:
         return (f"Unsupported file type {suffix}. Accepted: "
                 f"{', '.join(config.ACCEPTED_IMAGE_SUFFIXES)}")
+    # The suffix is a hint; the bytes are the check.
+    try:
+        with Image.open(io.BytesIO(uploaded_file.getvalue())) as probe:
+            fmt = probe.format
+            probe.verify()
+    except Exception as exc:
+        return f"{uploaded_file.name} is not a readable image: {exc}"
+    if fmt not in ACCEPTED_PIL_FORMATS:
+        return (f"{uploaded_file.name} decoded as {fmt!r}; accepted formats "
+                f"are {', '.join(ACCEPTED_PIL_FORMATS)}")
     return None

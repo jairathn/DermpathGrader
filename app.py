@@ -26,8 +26,10 @@ import zipfile
 
 import streamlit as st
 
+import claude_transport
 import config
 import image_utils
+import report
 from grading_logger import CaseLogger
 from utils import initialize_session_state, display_results
 from nevi_utils import initialize_nevi_session_state, display_nevi_results
@@ -106,7 +108,7 @@ def magnification_uploaders(key_prefix: str) -> dict[str, bytes]:
 def show_prepared(prepared: list) -> None:
     """Thumbnail strip plus what was actually sent."""
     columns = st.columns(len(prepared))
-    for column, image in zip(columns, prepared):
+    for column, image in zip(columns, prepared, strict=True):
         with column:
             st.image(f"data:image/jpeg;base64,{image.b64}",
                      caption=image.magnification, use_container_width=True)
@@ -237,14 +239,43 @@ def pathway_tab(pathway: str) -> None:
                     path = logger.save()
                     st.session_state[f"{prefix}_result"] = result
                     st.session_state[f"{prefix}_log_path"] = str(path)
+                except claude_transport.GradingRefused as exc:
+                    path = logger.save()
+                    st.session_state[f"{prefix}_result"] = None
+                    st.session_state[f"{prefix}_log_path"] = str(path)
+                    st.error(
+                        "The model declined to grade this case"
+                        + (f" (category: {exc.category})" if exc.category else "")
+                        + ". No grade was produced; the attempt is logged.")
+                except claude_transport.GradingTruncated as exc:
+                    path = logger.save()
+                    st.session_state[f"{prefix}_result"] = None
+                    st.session_state[f"{prefix}_log_path"] = str(path)
+                    st.error(f"Output was truncated: {exc}")
+                except claude_transport.GradingTransportError as exc:
+                    path = logger.save()
+                    st.session_state[f"{prefix}_result"] = None
+                    st.session_state[f"{prefix}_log_path"] = str(path)
+                    st.error(f"Could not reach the API after retries: {exc}")
                 except Exception as exc:
-                    st.error(f"Analysis failed: {exc}")
+                    try:
+                        if logger.record.get("failure") is None:
+                            logger.set_failure(exc)
+                        logger.save()
+                    except Exception:
+                        pass
+                    st.session_state[f"{prefix}_result"] = None
+                    st.error(f"Analysis failed: {type(exc).__name__}: {exc}")
 
     with right:
         st.header("Result")
         result = st.session_state.get(f"{prefix}_result")
         if not result:
-            st.info("No analysis yet.")
+            if st.session_state.get(f"{prefix}_log_path"):
+                st.warning("The last attempt produced no grade. Its log is "
+                           "below.")
+            else:
+                st.info("No analysis yet.")
         else:
             if is_cscc:
                 display_results(result)
@@ -253,12 +284,22 @@ def pathway_tab(pathway: str) -> None:
             log_path = st.session_state.get(f"{prefix}_log_path")
             if log_path and pathlib.Path(log_path).exists():
                 st.caption(f"Logged to {log_path}")
-                st.download_button(
-                    "Download this case log (.json)",
-                    data=pathlib.Path(log_path).read_text(encoding="utf-8"),
-                    file_name=pathlib.Path(log_path).name,
-                    mime="application/json",
-                    key=f"{prefix}_dl_one")
+                log_text = pathlib.Path(log_path).read_text(encoding="utf-8")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    st.download_button(
+                        "Download case log (.json)",
+                        data=log_text,
+                        file_name=pathlib.Path(log_path).name,
+                        mime="application/json",
+                        key=f"{prefix}_dl_one")
+                with col_b:
+                    st.download_button(
+                        "Download synoptic report (.md)",
+                        data=report.render(json.loads(log_text)),
+                        file_name=pathlib.Path(log_path).stem + ".md",
+                        mime="text/markdown",
+                        key=f"{prefix}_dl_report")
 
 
 def main() -> None:

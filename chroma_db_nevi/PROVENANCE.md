@@ -31,9 +31,11 @@ The text carries the article's body, tables and figure legends, but not
 the PDF's running headers, page furniture or reference list, so it
 chunks to 53 rather than 96. Because chunk IDs are assigned sequentially
 across the four documents in order, **every chunk ID after the
-substituted document shifts**, and the nevus retrieval distances do not
-match the pre-migration manifest. The original nevus reference value of
-0.4066 for subquery 1 does not reproduce and cannot be made to.
+substituted document shifts**, so nevus retrieval results after that point do not match the
+pre-migration manifest. One useful exception: the subquery-1 top-1 hit
+(`nevi_doc_49`, distance 0.4066) comes from `Nevi 2001`, which precedes
+the substituted document, so that single published reference value does
+still reproduce. Nothing that touches a later chunk ID does.
 
 This is recoverable only by restoring the original PDF (SHA-256
 `f5c217b3e5bf2c2f14667d5606bd2a2c12eab30a0c48c2ea327ebc45040eef01`,

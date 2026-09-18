@@ -261,7 +261,7 @@ ARCHITECTURAL FEATURES
         if feature.strip():
             report += f"{i}. {feature}\n"
     
-    report += f"""
+    report += """
 CYTOLOGICAL FEATURES
 -------------------
 """

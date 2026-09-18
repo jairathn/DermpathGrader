@@ -157,10 +157,14 @@ def partition_by_protocol(logs: list[dict]) -> tuple[list[dict], list[dict]]:
     """
     current, stale = [], []
     for log in logs:
-        if log.get("protocol_version") == config.PROTOCOL_VERSION:
-            current.append(log)
-        else:
+        if log.get("protocol_version") != config.PROTOCOL_VERSION:
             stale.append(log)
+        elif log.get("failure"):
+            # A refused or truncated case has no grade. It is counted in
+            # the parser summary, not silently scored as a miss.
+            continue
+        else:
+            current.append(log)
     return current, stale
 
 
@@ -389,6 +393,165 @@ def score_nevus(logs: list[dict], gt: dict[str, dict]) -> dict:
     }
 
 
+
+# ── replicate agreement ──────────────────────────────────────────────
+
+def fleiss_kappa(ratings: list[list[str]], labels: list[str]) -> float:
+    """Fleiss' kappa across replicates treated as raters.
+
+    Every case must carry the same number of ratings; the caller filters
+    to that. Returns nan when it is undefined (one case, one label, or a
+    degenerate margin).
+    """
+    if not ratings:
+        return float("nan")
+    n_raters = len(ratings[0])
+    if n_raters < 2 or any(len(r) != n_raters for r in ratings):
+        return float("nan")
+    n_cases = len(ratings)
+    index = {l: i for i, l in enumerate(labels)}
+    counts = [[0] * len(labels) for _ in ratings]
+    for i, row in enumerate(ratings):
+        for r in row:
+            if r in index:
+                counts[i][index[r]] += 1
+    p_j = [sum(c[j] for c in counts) / (n_cases * n_raters)
+           for j in range(len(labels))]
+    p_i = [(sum(x * x for x in c) - n_raters) / (n_raters * (n_raters - 1))
+           for c in counts]
+    p_bar = sum(p_i) / n_cases
+    p_e = sum(x * x for x in p_j)
+    if p_e == 1.0:
+        return float("nan")
+    return (p_bar - p_e) / (1 - p_e)
+
+
+def majority(values: list[str]) -> str:
+    """Most common label; ties broken by first occurrence, which is rep1."""
+    if not values:
+        return ""
+    counts = Counter(values)
+    top = max(counts.values())
+    for v in values:
+        if counts[v] == top:
+            return v
+    return values[0]
+
+
+def replicate_agreement(logs: list[dict], label_field: str,
+                        labels: list[str], normaliser) -> dict:
+    """Test-retest consistency of the model with itself.
+
+    Three replicates per case exist to measure this, so it is reported
+    as a first-class number: the fraction of cases where every replicate
+    gave the same label, the per-case majority label (used for reader
+    comparison), and Fleiss' kappa across replicates.
+    """
+    by_case: dict[str, list[tuple[int, str]]] = defaultdict(list)
+    for log in logs:
+        value = normaliser(log.get("parsing", {}).get("parsed", {})
+                           .get(label_field, ""))
+        if value:
+            by_case[log["case_id"]].append((log.get("replicate", 0), value))
+
+    rows, unanimous = [], 0
+    counts = Counter()
+    for case_id, pairs in sorted(by_case.items()):
+        pairs.sort()
+        values = [v for _, v in pairs]
+        agree = len(set(values)) == 1
+        unanimous += int(agree and len(values) > 1)
+        counts[len(values)] += 1
+        rows.append({"case_id": case_id, "n_replicates": len(values),
+                     "labels": "|".join(values),
+                     "majority": majority(values),
+                     "unanimous": int(agree)})
+
+    multi = [r for r in rows if r["n_replicates"] > 1]
+    mode_n = counts.most_common(1)[0][0] if counts else 0
+    complete = [by_case[r["case_id"]] for r in rows
+                if r["n_replicates"] == mode_n and mode_n > 1]
+    kappa = fleiss_kappa([[v for _, v in sorted(p)] for p in complete], labels)
+    return {"rows": rows, "n_cases": len(rows), "n_multi": len(multi),
+            "unanimous": unanimous, "fleiss_kappa": kappa,
+            "fleiss_n_cases": len(complete), "fleiss_n_raters": mode_n,
+            "majority_by_case": {r["case_id"]: r["majority"] for r in rows}}
+
+
+# ── reader study ─────────────────────────────────────────────────────
+
+def load_reader_grades(pathway: str, normaliser) -> dict[str, dict[str, str]]:
+    """reader_id -> case_id -> label, from data/reader_grades_<pathway>.csv.
+
+    Columns: reader_id, case_id, grade. Unrecognised grades are dropped
+    and counted, never guessed at.
+    """
+    p = pathlib.Path("data") / f"reader_grades_{pathway.lower()}.csv"
+    if not p.exists():
+        return {}
+    out: dict[str, dict[str, str]] = defaultdict(dict)
+    dropped = 0
+    with p.open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            value = normaliser(row.get("grade", ""))
+            if not value:
+                dropped += 1
+                continue
+            out[row["reader_id"].strip()][row["case_id"].strip()] = value
+    if dropped:
+        print(f"  ! {pathway} reader grades: {dropped} row(s) with an "
+              f"unrecognised grade were dropped")
+    return dict(out)
+
+
+def reader_comparison(pathway: str, model_majority: dict[str, str],
+                      reference: dict[str, str], labels: list[str],
+                      readers: dict[str, dict[str, str]]) -> list[dict]:
+    """The study's headline table: model and each reader against the
+    reference, readers against each other, and model against the reader
+    consensus - all on the same case set so the numbers are comparable.
+    """
+    if not readers:
+        return []
+    rows = []
+    common = set(model_majority) & set(reference)
+    for reader_cases in readers.values():
+        common &= set(reader_cases)
+    common = sorted(common)
+    if not common:
+        return [{"pathway": pathway, "comparison": "no cases common to "
+                 "model, reference and every reader", "n": 0}]
+
+    def agreement(a: dict, b: dict) -> tuple[int, int, float, float]:
+        pairs = [(a[c], b[c]) for c in common]
+        hits = sum(1 for x, y in pairs if x == y)
+        return (hits, len(pairs), cohen_kappa(pairs, labels),
+                weighted_kappa(pairs, labels))
+
+    def row(name: str, a: dict, b: dict) -> dict:
+        hits, n, k, wk = agreement(a, b)
+        low, high = wilson(hits, n)
+        return {"pathway": pathway, "comparison": name, "n": n,
+                "agreement": round(hits / n, 4), "ci95_low": round(low, 4),
+                "ci95_high": round(high, 4), "kappa": round(k, 3),
+                "weighted_kappa": round(wk, 3)}
+
+    rows.append(row("model_vs_reference", model_majority, reference))
+    for rid, cases in sorted(readers.items()):
+        rows.append(row(f"reader_{rid}_vs_reference", cases, reference))
+    for rid, cases in sorted(readers.items()):
+        rows.append(row(f"model_vs_reader_{rid}", model_majority, cases))
+    ids = sorted(readers)
+    for i, a in enumerate(ids):
+        for b in ids[i + 1:]:
+            rows.append(row(f"reader_{a}_vs_reader_{b}", readers[a], readers[b]))
+    if len(ids) >= 2:
+        consensus = {c: majority([readers[r][c] for r in ids]) for c in common}
+        rows.append(row("model_vs_reader_consensus", model_majority, consensus))
+        rows.append(row("reader_consensus_vs_reference", consensus, reference))
+    return rows
+
+
 # ── reporting ────────────────────────────────────────────────────────
 
 def write_csv(path: pathlib.Path, rows: list[dict]) -> None:
@@ -437,9 +600,28 @@ def main() -> None:
     if cscc_stale:
         notes.append(f"CSCC: excluded {len(cscc_stale)} log(s) from an "
                      f"earlier protocol version.")
+    reader_rows: list[dict] = []
+    replicate_rows: list[dict] = []
+
     if cscc_logs:
-        cscc = score_cscc(cscc_logs, load_ground_truth("CSCC"))
+        gt_cscc = load_ground_truth("CSCC")
+        cscc = score_cscc(cscc_logs, gt_cscc)
         write_csv(outdir / "cscc_cases.csv", cscc["rows"])
+
+        rep = replicate_agreement(cscc_logs, "primary_grade", CSCC_LABELS,
+                                  normalize_cscc)
+        replicate_rows += [{"pathway": "CSCC", **r} for r in rep["rows"]]
+        arms.append(arm_row("CSCC_replicate_unanimity", rep["unanimous"],
+                            rep["n_multi"],
+                            f"cases where every replicate agreed; Fleiss "
+                            f"kappa={rep['fleiss_kappa']:.3f} over "
+                            f"{rep['fleiss_n_cases']} cases x "
+                            f"{rep['fleiss_n_raters']} reps"))
+        reader_rows += reader_comparison(
+            "CSCC", rep["majority_by_case"],
+            {c: normalize_cscc(r.get("reference_grade", ""))
+             for c, r in gt_cscc.items()},
+            CSCC_LABELS, load_reader_grades("CSCC", normalize_cscc))
         write_confusion(outdir / "cscc_confusion.csv",
                         cscc["labels"], cscc["matrix"])
         arms.append(arm_row(
@@ -456,8 +638,24 @@ def main() -> None:
         notes.append(f"Nevus: excluded {len(nevus_stale)} log(s) from an "
                      f"earlier protocol version.")
     if nevus_logs:
-        nevus = score_nevus(nevus_logs, load_ground_truth("Nevus"))
+        gt_nevus = load_ground_truth("Nevus")
+        nevus = score_nevus(nevus_logs, gt_nevus)
         write_csv(outdir / "nevus_cases.csv", nevus["rows"])
+
+        rep = replicate_agreement(nevus_logs, "mpath_dx_v2_class",
+                                  NEVUS_LABELS, normalize_class)
+        replicate_rows += [{"pathway": "Nevus", **r} for r in rep["rows"]]
+        arms.append(arm_row("Nevus_replicate_unanimity", rep["unanimous"],
+                            rep["n_multi"],
+                            f"cases where every replicate agreed; Fleiss "
+                            f"kappa={rep['fleiss_kappa']:.3f} over "
+                            f"{rep['fleiss_n_cases']} cases x "
+                            f"{rep['fleiss_n_raters']} reps"))
+        reader_rows += reader_comparison(
+            "Nevus", rep["majority_by_case"],
+            {c: normalize_class(r.get("reference_class", ""))
+             for c, r in gt_nevus.items()},
+            NEVUS_LABELS, load_reader_grades("Nevus", normalize_class))
         write_confusion(outdir / "nevus_confusion.csv",
                         nevus["labels"], nevus["matrix"])
 
@@ -530,6 +728,12 @@ def main() -> None:
                 f"First few: {', '.join(nevus['bad_reference'][:5])}")
 
     write_csv(outdir / "concordance.csv", arms)
+    write_csv(outdir / "replicate_agreement.csv", replicate_rows)
+    if reader_rows:
+        write_csv(outdir / "reader_comparison.csv", reader_rows)
+    else:
+        notes.append("No reader grades found (data/reader_grades_<pathway>.csv); "
+                     "reader_comparison.csv not written.")
 
     # Parser summary: under v2.0 any fallback at all is a defect.
     parser_rows = []
@@ -539,6 +743,12 @@ def main() -> None:
             log.get("parsing", {}).get("strategy_used", "") for log in logs)
         fallbacks = sum(1 for log in logs
                         if log.get("parsing", {}).get("fallback_invoked"))
+        all_logs = load_logs(pathway)
+        failed = Counter(
+            (log.get("failure") or {}).get("error_class", "")
+            for log in all_logs
+            if log.get("protocol_version") == config.PROTOCOL_VERSION
+            and log.get("failure"))
         truncated = sum(1 for log in logs
                         if log.get("response", {}).get(
                             "stop_reason") == "max_tokens")
@@ -546,6 +756,8 @@ def main() -> None:
             "pathway": pathway, "n_logs": len(logs),
             "fallback_invoked": fallbacks,
             "truncated_max_tokens": truncated,
+            "failed_no_grade": sum(failed.values()),
+            "failure_classes": json.dumps(dict(failed)),
             "strategies": json.dumps(dict(strategies)),
         })
     write_csv(outdir / "parser_summary.csv", parser_rows)
@@ -556,6 +768,13 @@ def main() -> None:
             continue
         print(f"  {row['arm']:36} {row['n_concordant']:>4}/{row['n_total']:<4}"
               f"  {row['concordance']}  {row['note']}")
+    if reader_rows:
+        print()
+        for row in reader_rows:
+            if row.get("n"):
+                print(f"  {row['pathway']:6} {row['comparison']:34} "
+                      f"n={row['n']:<4} agree={row['agreement']}  "
+                      f"kappa={row['kappa']}  wkappa={row['weighted_kappa']}")
     for row in parser_rows:
         if row["fallback_invoked"] or row["truncated_max_tokens"]:
             print(f"\n  ! {row['pathway']}: {row['fallback_invoked']} "

@@ -16,5 +16,7 @@ jobs:
       # No API key: tests/test_smoke.py is entirely offline by design, so
       # the magnification contract, the MPATH-Dx v2.0 mapping and the
       # scoring statistics are all checked without spending anything.
-      - run: pip install pillow numpy
+      - run: pip install pillow numpy anthropic
       - run: python tests/test_smoke.py
+      - run: python tests/test_e2e.py
+      - run: pip install ruff && ruff check --select E9,F,B,PLE .
