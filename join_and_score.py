@@ -1,567 +1,539 @@
+"""Join case logs to ground truth and compute concordance (protocol v2.0).
+
+    python join_and_score.py [--outdir results]
+
+Why this was rewritten rather than patched
+------------------------------------------
+The v1 scorer was built around two fields, `traditional_grade` (three
+dysplasia tiers) and `mpath_grade` (a two-tier Low/High-Grade label).
+Both are gone: the melanocytic label space is now four-way (melanoma is a
+category, not the top of the dysplasia ladder) and the second field is a
+real MPATH-Dx v2.0 class. There was no honest way to map the old arms
+onto the new labels.
+
+Scoring arms
+------------
+CSCC (one arm)
+  CSCC_3tier                 well / moderately / poorly, exact match.
+
+Melanocytic (four arms)
+  Nevus_stratum_4way         mild / moderate / severe / melanoma, exact.
+  Nevus_MPATH_v2_class       model class against the expected set for the
+                             reference stratum. Under v2.0 the moderate
+                             stratum expects {I, II} because the schema
+                             removed the standalone moderate class, so
+                             those cases are scored as concordant on
+                             either and are ALSO reported separately in
+                             the ambiguity breakdown. Read both numbers.
+  Nevus_management_binary    Class I versus Class II or above, i.e. the
+                             re-excision decision. This is the arm that
+                             corresponds to something happening to a
+                             patient.
+  Nevus_melanoma_detection   melanoma versus not, as sensitivity and
+                             specificity. New in v2.0, and the reason the
+                             melanoma stratum exists.
+
+Nevus_internal_consistency is reported alongside these but is not a
+concordance arm: it measures whether the model's own fields agree with
+each other, which is a property of the output, not of the ground truth.
 """
-join_and_score.py
------------------
-Step 6 of the logging workflow.  Run after all cases are complete.
 
-    python join_and_score.py [--pathway CSCC|Nevus|both]
-
-Reads:
-  run_manifest.json
-  analysis_logs/{pathway}/{case_id}__rep{n}.json   (all replicates)
-  ground_truth_cscc.csv / ground_truth_nevus.csv
-
-Writes (results/ directory):
-  case_results_{pathway}.csv
-  confusion_cscc.csv
-  confusion_nevus_traditional.csv
-  confusion_nevus_mpath.csv
-  concordance_wilson.csv
-  repeat_agreement_{pathway}.csv
-  retrieval_table_{pathway}.csv
-  context_invariance.txt
-  parser_fallback_summary.csv
-"""
+from __future__ import annotations
 
 import argparse
 import csv
-import glob
-import io
 import json
+import math
 import pathlib
 import sys
-from math import sqrt
-from collections import defaultdict
-from typing import Dict, List, Optional
+from collections import Counter, defaultdict
+
+import config
+import mpath_dx
 
 
-OUT_DIR = pathlib.Path("results")
+# ── statistics ───────────────────────────────────────────────────────
 
-# ── Wilson confidence interval ────────────────────────────────────────────────
-
-def wilson(x: int, n: int, z: float = 1.959963985):
-    """Wilson score interval.  Returns (lower, upper)."""
+def wilson(x: int, n: int, z: float = 1.959963985) -> tuple[float, float]:
+    """Wilson score interval. Behaves at 0/n and n/n, unlike the normal
+    approximation, which matters at 50 cases per stratum."""
     if n == 0:
-        return 0.0, 1.0
+        return (0.0, 0.0)
     p = x / n
-    d = 1 + z * z / n
-    c = (p + z * z / (2 * n)) / d
-    h = (z / d) * sqrt(p * (1 - p) / n + z * z / (4 * n * n))
-    return max(0.0, c - h), min(1.0, c + h)
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return (max(0.0, centre - half), min(1.0, centre + half))
 
 
-# ── loaders ───────────────────────────────────────────────────────────────────
+def cohen_kappa(pairs: list[tuple[str, str]], labels: list[str]) -> float:
+    """Unweighted Cohen's kappa. Returns nan when it is undefined."""
+    n = len(pairs)
+    if n == 0:
+        return float("nan")
+    observed = sum(1 for a, b in pairs if a == b) / n
+    ref_counts = Counter(a for a, _ in pairs)
+    mod_counts = Counter(b for _, b in pairs)
+    expected = sum((ref_counts[l] / n) * (mod_counts[l] / n) for l in labels)
+    if expected == 1.0:
+        return float("nan")
+    return (observed - expected) / (1 - expected)
+
+
+def weighted_kappa(pairs: list[tuple[str, str]], labels: list[str]) -> float:
+    """Quadratic-weighted kappa, for the ordered grade scales.
+
+    Ordinal grades deserve partial credit: calling a severe lesion
+    moderate is a different error from calling it mild, and unweighted
+    kappa treats both as equally wrong.
+    """
+    n = len(pairs)
+    if n == 0:
+        return float("nan")
+    index = {l: i for i, l in enumerate(labels)}
+    k = len(labels)
+    if k < 2:
+        return float("nan")
+
+    def w(i: int, j: int) -> float:
+        return ((i - j) / (k - 1)) ** 2
+
+    pairs = [(a, b) for a, b in pairs if a in index and b in index]
+    n = len(pairs)
+    if n == 0:
+        return float("nan")
+
+    observed = sum(w(index[a], index[b]) for a, b in pairs) / n
+    ref_counts = Counter(a for a, _ in pairs)
+    mod_counts = Counter(b for _, b in pairs)
+    expected = sum(
+        w(index[a], index[b]) * (ref_counts[a] / n) * (mod_counts[b] / n)
+        for a in labels for b in labels)
+    if expected == 0:
+        return float("nan")
+    return 1 - observed / expected
+
+
+# ── loaders ──────────────────────────────────────────────────────────
 
 def load_manifest() -> dict:
-    p = pathlib.Path("run_manifest.json")
+    p = pathlib.Path(config.RUN_MANIFEST)
     if not p.exists():
-        sys.exit("run_manifest.json not found.")
+        sys.exit(f"{config.RUN_MANIFEST} not found. Run make_manifest.py.")
     return json.loads(p.read_text())
 
 
-def load_ground_truth_cscc() -> Dict[str, dict]:
-    rows: Dict[str, dict] = {}
-    with open("ground_truth_cscc.csv", newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            rows[row["case_id"]] = row
-    return rows
+def load_ground_truth(pathway: str) -> dict[str, dict]:
+    p = pathlib.Path(config.GROUND_TRUTH[pathway])
+    if not p.exists():
+        sys.exit(f"{p} not found.")
+    with p.open(newline="", encoding="utf-8") as fh:
+        return {row["case_id"]: row for row in csv.DictReader(fh)}
 
 
-def load_ground_truth_nevus() -> Dict[str, dict]:
-    rows: Dict[str, dict] = {}
-    with open("ground_truth_nevus.csv", newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            rows[row["case_id"]] = row
-    return rows
-
-
-def load_logs(pathway: str) -> List[dict]:
+def load_logs(pathway: str) -> list[dict]:
+    directory = pathlib.Path(config.LOG_ROOT) / pathway
+    if not directory.exists():
+        return []
     logs = []
-    pattern = str(pathlib.Path("analysis_logs") / pathway / "*.json")
-    for fp in sorted(glob.glob(pattern)):
-        try:
-            logs.append(json.loads(pathlib.Path(fp).read_text()))
-        except Exception as e:
-            print(f"  ⚠  Could not parse {fp}: {e}")
+    for path in sorted(directory.glob("*.json")):
+        log = json.loads(path.read_text())
+        log["_path"] = str(path)
+        logs.append(log)
     return logs
 
 
-# ── normalisation helpers ─────────────────────────────────────────────────────
+def partition_by_protocol(logs: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Split current-protocol logs from everything else.
 
-# Map ground-truth spellings → canonical model spellings for comparison
-CSCC_GRADE_MAP = {
-    "Well-Differentiated":         "Well Differentiated",
-    "Moderately-Differentiated":   "Moderately Differentiated",
-    "Poorly-Differentiated":       "Poorly Differentiated",
+    Pooling a v1 single-image log with a v2 four-image log would compare
+    two different experiments. They are separated here and the count of
+    excluded logs is reported rather than dropped silently.
+    """
+    current, stale = [], []
+    for log in logs:
+        if log.get("protocol_version") == config.PROTOCOL_VERSION:
+            current.append(log)
+        else:
+            stale.append(log)
+    return current, stale
+
+
+# ── normalisation ────────────────────────────────────────────────────
+
+CSCC_LABELS = ["Well Differentiated", "Moderately Differentiated",
+               "Poorly Differentiated"]
+NEVUS_LABELS = list(config.NEVUS_STRATA)
+
+_CSCC_ALIASES = {
+    "well": "Well Differentiated",
+    "well-differentiated": "Well Differentiated",
+    "well differentiated": "Well Differentiated",
+    "moderately": "Moderately Differentiated",
+    "moderately-differentiated": "Moderately Differentiated",
+    "moderately differentiated": "Moderately Differentiated",
+    "moderate": "Moderately Differentiated",
+    "poorly": "Poorly Differentiated",
+    "poorly-differentiated": "Poorly Differentiated",
+    "poorly differentiated": "Poorly Differentiated",
+    "poor": "Poorly Differentiated",
 }
 
-NEVI_TRAD_MAP = {
-    "Mild Dysplasia":     "Mild Dysplasia",
-    "Moderate Dysplasia": "Moderate Dysplasia",
-    "Severe Dysplasia":   "Severe Dysplasia",
-}
-
-NEVI_MPATH_MAP = {
-    "Low-Grade Dysplasia":  "Low-Grade Dysplasia",
-    "High-Grade Dysplasia": "High-Grade Dysplasia",
-}
-
-# Expected MPATH mapping from traditional grade (for internal consistency)
-TRAD_TO_MPATH = {
-    "Mild Dysplasia":     "Low-Grade Dysplasia",
-    "Moderate Dysplasia": "Low-Grade Dysplasia",
-    "Severe Dysplasia":   "High-Grade Dysplasia",
+_NEVUS_ALIASES = {
+    "mild": "mild", "mild dysplasia": "mild",
+    "moderate": "moderate", "moderate dysplasia": "moderate",
+    "severe": "severe", "severe dysplasia": "severe",
+    "melanoma": "melanoma", "invasive melanoma": "melanoma",
+    "melanoma in situ": "melanoma", "in situ melanoma": "melanoma",
 }
 
 
 def normalize_cscc(grade: str) -> str:
-    return CSCC_GRADE_MAP.get(grade, grade)
+    return _CSCC_ALIASES.get(str(grade).strip().lower(), str(grade).strip())
 
 
-def concordant_cscc(ref_raw: str, model: str) -> bool:
-    return normalize_cscc(ref_raw) == model
+def normalize_nevus(grade: str) -> str:
+    return _NEVUS_ALIASES.get(str(grade).strip().lower(), str(grade).strip())
 
 
-# ── context invariance ────────────────────────────────────────────────────────
-
-def check_context_invariance(all_logs: Dict[str, List[dict]]) -> str:
-    lines = []
-    for pathway, logs in all_logs.items():
-        hashes = {log["retrieval"]["context_block_sha256"] for log in logs
-                  if log.get("retrieval", {}).get("context_block_sha256")}
-        n = len(hashes)
-        status = "✅ PASS" if n == 1 else f"❌ FAIL ({n} distinct hashes)"
-        lines.append(f"{pathway}: {n} distinct context_block_sha256  {status}")
-        if n != 1:
-            for h in hashes:
-                lines.append(f"   • {h}")
-    return "\n".join(lines)
+def _float_or_none(value) -> float | None:
+    try:
+        text = str(value).strip()
+        return float(text) if text else None
+    except (TypeError, ValueError):
+        return None
 
 
-# ── CSCC scoring ──────────────────────────────────────────────────────────────
+# ── CSCC ─────────────────────────────────────────────────────────────
 
-CSCC_LABELS = ["Well Differentiated", "Moderately Differentiated",
-               "Poorly Differentiated"]
+def score_cscc(logs: list[dict], gt: dict[str, dict]) -> dict:
+    rows, pairs = [], []
+    matrix: dict[tuple[str, str], int] = defaultdict(int)
+    by_grade: dict[str, list[int]] = defaultdict(list)
 
-
-def score_cscc(logs: List[dict], gt: Dict[str, dict]) -> dict:
-    # Rep-1 only for confusion / concordance
-    rep1 = [l for l in logs if l.get("replicate") == 1]
-
-    case_rows = []
     for log in logs:
-        cid  = log["case_id"]
-        rep  = log["replicate"]
-        gt_row = gt.get(cid, {})
-        ref_raw   = gt_row.get("reference_grade", "")
-        ref_canon = normalize_cscc(ref_raw)
-        parsed    = log.get("parsing", {}).get("parsed", {})
-        model_grade = parsed.get("primary_grade", "")
-        conc = concordant_cscc(ref_raw, model_grade) if ref_raw else None
-        case_rows.append({
-            "case_id":          cid,
-            "replicate":        rep,
-            "reference_grade":  ref_raw,
-            "model_grade":      model_grade,
-            "concordant":       conc,
-            "confidence_level": parsed.get("confidence_level", ""),
-            "keratinization":   parsed.get("keratinization_present", ""),
-            "atypia_level":     parsed.get("atypia_level", ""),
-            "key_features":     "; ".join(parsed.get("key_features", [])),
-            "additional_obs":   parsed.get("additional_observations", ""),
-            "api_request_id":   log.get("response", {}).get("api_request_id", ""),
-        })
-
-    # Confusion matrix (rep-1 only)
-    conf = {r: {c: 0 for c in CSCC_LABELS} for r in CSCC_LABELS}
-    for log in rep1:
-        cid = log["case_id"]
-        ref_raw = gt.get(cid, {}).get("reference_grade", "")
-        ref_c   = normalize_cscc(ref_raw)
-        model   = log.get("parsing", {}).get("parsed", {}).get("primary_grade", "")
-        if ref_c in conf and model in conf[ref_c]:
-            conf[ref_c][model] += 1
-
-    # Overall concordance (rep-1)
-    rep1_with_gt = [l for l in rep1 if gt.get(l["case_id"], {}).get("reference_grade")]
-    n_concordant = sum(1 for l in rep1_with_gt
-                       if concordant_cscc(gt[l["case_id"]]["reference_grade"],
-                                          l.get("parsing", {}).get("parsed", {}).get("primary_grade", "")))
-    n_total = len(rep1_with_gt)
-
-    # Per-grade concordance
-    grade_conc = {}
-    for grade in CSCC_LABELS:
-        grade_cases = [l for l in rep1_with_gt
-                       if normalize_cscc(gt[l["case_id"]]["reference_grade"]) == grade]
-        nc = sum(1 for l in grade_cases
-                 if l.get("parsing", {}).get("parsed", {}).get("primary_grade", "") == grade)
-        grade_conc[grade] = (nc, len(grade_cases))
-
-    # Repeat agreement
-    by_case: Dict[str, List[str]] = defaultdict(list)
-    for log in logs:
-        cid   = log["case_id"]
-        grade = log.get("parsing", {}).get("parsed", {}).get("primary_grade", "")
-        by_case[cid].append(grade)
-    repeat_rows = []
-    for cid, grades in by_case.items():
-        all_same = len(set(grades)) == 1
-        repeat_rows.append({"case_id": cid, "all_replicates_agree": all_same,
-                            "grades": "; ".join(grades)})
-    overall_agree = sum(1 for r in repeat_rows if r["all_replicates_agree"])
-
-    return {
-        "case_rows":    case_rows,
-        "confusion":    conf,
-        "n_concordant": n_concordant,
-        "n_total":      n_total,
-        "grade_conc":   grade_conc,
-        "repeat_rows":  repeat_rows,
-        "overall_agree": overall_agree,
-    }
-
-
-# ── Nevus scoring ─────────────────────────────────────────────────────────────
-
-NEVI_TRAD_LABELS  = ["Mild Dysplasia", "Moderate Dysplasia", "Severe Dysplasia"]
-NEVI_MPATH_LABELS = ["Low-Grade Dysplasia", "High-Grade Dysplasia"]
-
-
-def score_nevus(logs: List[dict], gt: Dict[str, dict]) -> dict:
-    rep1 = [l for l in logs if l.get("replicate") == 1]
-
-    case_rows = []
-    for log in logs:
-        cid     = log["case_id"]
-        rep     = log["replicate"]
-        gt_row  = gt.get(cid, {})
-        ref_trad  = gt_row.get("reference_traditional_grade", "")
-        ref_mpath = gt_row.get("reference_mpath_grade", "")
-        parsed    = log.get("parsing", {}).get("parsed", {})
-        model_trad  = parsed.get("traditional_grade", "")
-        model_mpath = parsed.get("mpath_grade", "")
-
-        # Internal consistency: does model's own trad map to model's own mpath?
-        expected_mpath = TRAD_TO_MPATH.get(model_trad, "")
-        internally_consistent = (model_mpath == expected_mpath)
-
-        case_rows.append({
-            "case_id":                  cid,
-            "replicate":                rep,
-            "reference_traditional":    ref_trad,
-            "model_traditional":        model_trad,
-            "concordant_traditional":   (ref_trad == model_trad) if ref_trad else "",
-            "reference_mpath":          ref_mpath,
-            "model_mpath":              model_mpath,
-            "concordant_mpath":         (ref_mpath == model_mpath) if ref_mpath else "",
-            "internally_consistent":    internally_consistent,
-            "confidence":               parsed.get("confidence_level", ""),
-            "nuclear_count":            parsed.get("nuclear_abnormality_count", ""),
-            "architectural_features":   "; ".join(parsed.get("architectural_features", [])),
-            "cytological_features":     "; ".join(parsed.get("cytological_features", [])),
-            "grading_rationale":        parsed.get("grading_rationale", ""),
-            "clinical_significance":    parsed.get("clinical_significance", ""),
-            "api_request_id":           log.get("response", {}).get("api_request_id", ""),
-        })
-
-    # Confusion matrices (rep-1 only)
-    conf_trad  = {r: {c: 0 for c in NEVI_TRAD_LABELS}  for r in NEVI_TRAD_LABELS}
-    conf_mpath = {r: {c: 0 for c in NEVI_MPATH_LABELS} for r in NEVI_MPATH_LABELS}
-
-    for log in rep1:
-        cid = log["case_id"]
-        gt_row  = gt.get(cid, {})
-        parsed  = log.get("parsing", {}).get("parsed", {})
-
-        ref_t   = gt_row.get("reference_traditional_grade", "")
-        model_t = parsed.get("traditional_grade", "")
-        if ref_t in conf_trad and model_t in conf_trad.get(ref_t, {}):
-            conf_trad[ref_t][model_t] += 1
-
-        ref_m   = gt_row.get("reference_mpath_grade", "")
-        model_m = parsed.get("mpath_grade", "")
-        if ref_m in conf_mpath and model_m in conf_mpath.get(ref_m, {}):
-            conf_mpath[ref_m][model_m] += 1
-
-    # Concordance counts (rep-1)
-    rep1_gt = [l for l in rep1 if gt.get(l["case_id"], {}).get("reference_traditional_grade")]
-    nc_trad = sum(1 for l in rep1_gt
-                  if l.get("parsing",{}).get("parsed",{}).get("traditional_grade","") ==
-                     gt[l["case_id"]]["reference_traditional_grade"])
-    nc_mpath = sum(1 for l in rep1_gt
-                   if l.get("parsing",{}).get("parsed",{}).get("mpath_grade","") ==
-                      gt[l["case_id"]].get("reference_mpath_grade",""))
-    nc_consist = sum(1 for l in rep1_gt
-                     if TRAD_TO_MPATH.get(
-                         l.get("parsing",{}).get("parsed",{}).get("traditional_grade",""), "")
-                        == l.get("parsing",{}).get("parsed",{}).get("mpath_grade",""))
-    n_total = len(rep1_gt)
-
-    # Per-grade traditional concordance
-    trad_grade_conc = {}
-    for grade in NEVI_TRAD_LABELS:
-        glist = [l for l in rep1_gt
-                 if gt[l["case_id"]]["reference_traditional_grade"] == grade]
-        nc = sum(1 for l in glist
-                 if l.get("parsing",{}).get("parsed",{}).get("traditional_grade","") == grade)
-        trad_grade_conc[grade] = (nc, len(glist))
-
-    # Per-grade MPATH concordance
-    mpath_grade_conc = {}
-    for grade in NEVI_MPATH_LABELS:
-        glist = [l for l in rep1_gt
-                 if gt[l["case_id"]].get("reference_mpath_grade","") == grade]
-        nc = sum(1 for l in glist
-                 if l.get("parsing",{}).get("parsed",{}).get("mpath_grade","") == grade)
-        mpath_grade_conc[grade] = (nc, len(glist))
-
-    # Repeat agreement
-    by_case_t: Dict[str, List[str]] = defaultdict(list)
-    by_case_m: Dict[str, List[str]] = defaultdict(list)
-    for log in logs:
-        cid = log["case_id"]
-        by_case_t[cid].append(log.get("parsing",{}).get("parsed",{}).get("traditional_grade",""))
-        by_case_m[cid].append(log.get("parsing",{}).get("parsed",{}).get("mpath_grade",""))
-
-    repeat_rows = []
-    for cid in by_case_t:
-        gt_trad  = by_case_t[cid]
-        gt_mpath = by_case_m[cid]
-        repeat_rows.append({
-            "case_id":            cid,
-            "traditional_agree":  len(set(gt_trad))  == 1,
-            "traditional_grades": "; ".join(gt_trad),
-            "mpath_agree":        len(set(gt_mpath)) == 1,
-            "mpath_grades":       "; ".join(gt_mpath),
-        })
-    trad_agree  = sum(1 for r in repeat_rows if r["traditional_agree"])
-    mpath_agree = sum(1 for r in repeat_rows if r["mpath_agree"])
-
-    return {
-        "case_rows":       case_rows,
-        "conf_trad":       conf_trad,
-        "conf_mpath":      conf_mpath,
-        "nc_trad":         nc_trad,
-        "nc_mpath":        nc_mpath,
-        "nc_consist":      nc_consist,
-        "n_total":         n_total,
-        "trad_grade_conc": trad_grade_conc,
-        "mpath_grade_conc":mpath_grade_conc,
-        "repeat_rows":     repeat_rows,
-        "trad_agree":      trad_agree,
-        "mpath_agree":     mpath_agree,
-    }
-
-
-# ── retrieval table ───────────────────────────────────────────────────────────
-
-def build_retrieval_table(manifest: dict, pathway: str) -> List[dict]:
-    results = manifest["pathways"][pathway]["retrieval"]["results"]
-    # Group by subquery, compute min/max distance across top 5
-    from collections import defaultdict
-    by_sq: Dict[int, List[dict]] = defaultdict(list)
-    for r in results:
-        by_sq[r["subquery_n"]].append(r)
-
-    rows = []
-    for sq_n in sorted(by_sq):
-        entries = by_sq[sq_n]
-        distances = [e["distance"] for e in entries]
-        sources   = list({e["source"] for e in entries})
-        chunk_ids = [e["chunk_id"] for e in entries]
-        rows.append({
-            "subquery_n":    sq_n,
-            "subquery":      entries[0]["subquery"],
-            "min_distance":  round(min(distances), 4),
-            "max_distance":  round(max(distances), 4),
-            "source_docs":   "; ".join(sorted(sources)),
-            "chunk_ids":     "; ".join(chunk_ids),
-            "content_type":  "",   # filled by hand per spec
-        })
-    return rows
-
-
-# ── writers ───────────────────────────────────────────────────────────────────
-
-def write_csv(filepath: pathlib.Path, rows: List[dict]):
-    if not rows:
-        filepath.write_text("(no data)\n", encoding="utf-8")
-        return
-    with open(filepath, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
-        w.writeheader()
-        w.writerows(rows)
-
-
-def write_confusion_csv(filepath: pathlib.Path, labels: List[str], matrix: dict):
-    with open(filepath, "w", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        header = ["ref \\ model"] + labels
-        w.writerow(header)
-        for ref in labels:
-            row = [ref] + [matrix.get(ref, {}).get(col, 0) for col in labels]
-            w.writerow(row)
-
-
-def write_concordance_csv(filepath: pathlib.Path,
-                          cscc: Optional[dict], nevus: Optional[dict]):
-    rows = []
-
-    def add_arm(arm_name, nc, n, grade_conc):
-        lo, hi = wilson(nc, n)
-        rows.append({
-            "arm":           arm_name,
-            "grade":         "Overall",
-            "concordant":    nc,
-            "total":         n,
-            "proportion":    round(nc / n, 4) if n else "",
-            "wilson_lo_95":  round(lo, 4),
-            "wilson_hi_95":  round(hi, 4),
-        })
-        for grade, (gnc, gn) in grade_conc.items():
-            glo, ghi = wilson(gnc, gn)
-            rows.append({
-                "arm":           arm_name,
-                "grade":         grade,
-                "concordant":    gnc,
-                "total":         gn,
-                "proportion":    round(gnc / gn, 4) if gn else "",
-                "wilson_lo_95":  round(glo, 4),
-                "wilson_hi_95":  round(ghi, 4),
-            })
-
-    if cscc:
-        add_arm("CSCC_3tier", cscc["n_concordant"], cscc["n_total"],
-                cscc["grade_conc"])
-
-    if nevus:
-        add_arm("Nevus_traditional_3tier", nevus["nc_trad"], nevus["n_total"],
-                nevus["trad_grade_conc"])
-        add_arm("Nevus_MPATH_2tier",       nevus["nc_mpath"], nevus["n_total"],
-                nevus["mpath_grade_conc"])
-        # Internal consistency arm (no grade breakdown)
-        lo, hi = wilson(nevus["nc_consist"], nevus["n_total"])
-        rows.append({
-            "arm":           "Nevus_internal_consistency",
-            "grade":         "Overall",
-            "concordant":    nevus["nc_consist"],
-            "total":         nevus["n_total"],
-            "proportion":    round(nevus["nc_consist"] / nevus["n_total"], 4)
-                             if nevus["n_total"] else "",
-            "wilson_lo_95":  round(lo, 4),
-            "wilson_hi_95":  round(hi, 4),
-        })
-
-    write_csv(filepath, rows)
-
-
-def write_parser_summary(filepath: pathlib.Path,
-                         all_logs: Dict[str, List[dict]]):
-    rows = []
-    for pathway, logs in all_logs.items():
-        by_strategy: Dict[str, List[str]] = defaultdict(list)
-        for log in logs:
-            strat = log.get("parsing", {}).get("strategy_used", "unknown")
-            by_strategy[strat].append(log["case_id"])
-        for strat, cases in by_strategy.items():
-            rows.append({
-                "pathway":         pathway,
-                "strategy_used":   strat,
-                "count":           len(cases),
-                "case_ids":        "; ".join(sorted(set(cases))),
-            })
-    write_csv(filepath, rows)
-
-
-# ── main ──────────────────────────────────────────────────────────────────────
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--pathway", choices=["CSCC", "Nevus", "both"],
-                        default="both")
-    args = parser.parse_args()
-
-    OUT_DIR.mkdir(exist_ok=True)
-
-    manifest = load_manifest()
-    run_pathways = (["CSCC", "Nevus"] if args.pathway == "both"
-                    else [args.pathway])
-
-    cscc_result  = None
-    nevus_result = None
-    all_logs: Dict[str, List[dict]] = {}
-
-    for pathway in run_pathways:
-        logs = load_logs(pathway)
-        if not logs:
-            print(f"  ⚠  No logs found for {pathway} — skipping.")
+        case_id = log["case_id"]
+        reference = normalize_cscc(
+            gt.get(case_id, {}).get("reference_grade", ""))
+        model = normalize_cscc(
+            log.get("parsing", {}).get("parsed", {}).get("primary_grade", ""))
+        if not reference or not model:
             continue
-        all_logs[pathway] = logs
-        print(f"{pathway}: {len(logs)} log files loaded.")
+        hit = int(reference == model)
+        pairs.append((reference, model))
+        matrix[(reference, model)] += 1
+        by_grade[reference].append(hit)
+        rows.append({
+            "case_id": case_id,
+            "replicate": log.get("replicate"),
+            "reference_grade": reference,
+            "model_grade": model,
+            "concordant": hit,
+            "confidence_level": log["parsing"]["parsed"].get(
+                "confidence_level", ""),
+            "magnifications_sent": "|".join(
+                log.get("image_set", {}).get("magnifications_sent", [])),
+        })
 
-        if pathway == "CSCC":
-            gt = load_ground_truth_cscc()
-            r  = score_cscc(logs, gt)
-            cscc_result = r
+    n = len(pairs)
+    nc = sum(1 for a, b in pairs if a == b)
+    return {
+        "rows": rows, "matrix": matrix, "labels": CSCC_LABELS,
+        "n_total": n, "n_concordant": nc,
+        "kappa": cohen_kappa(pairs, CSCC_LABELS),
+        "weighted_kappa": weighted_kappa(pairs, CSCC_LABELS),
+        "by_grade": {g: (sum(v), len(v)) for g, v in by_grade.items()},
+    }
 
-            write_csv(OUT_DIR / "case_results_CSCC.csv", r["case_rows"])
-            write_confusion_csv(OUT_DIR / "confusion_cscc.csv",
-                                CSCC_LABELS, r["confusion"])
 
-            repeat = r["repeat_rows"] + [{
-                "case_id": "_OVERALL",
-                "all_replicates_agree": r["overall_agree"],
-                "grades": f"{r['overall_agree']}/{len(r['repeat_rows'])} cases fully agree",
-            }]
-            write_csv(OUT_DIR / "repeat_agreement_CSCC.csv", repeat)
+# ── melanocytic ──────────────────────────────────────────────────────
 
-        else:  # Nevus
-            gt = load_ground_truth_nevus()
-            r  = score_nevus(logs, gt)
-            nevus_result = r
+def score_nevus(logs: list[dict], gt: dict[str, dict]) -> dict:
+    rows, pairs = [], []
+    matrix: dict[tuple[str, str], int] = defaultdict(int)
+    by_stratum: dict[str, list[int]] = defaultdict(list)
 
-            write_csv(OUT_DIR / "case_results_Nevus.csv", r["case_rows"])
-            write_confusion_csv(OUT_DIR / "confusion_nevus_traditional.csv",
-                                NEVI_TRAD_LABELS, r["conf_trad"])
-            write_confusion_csv(OUT_DIR / "confusion_nevus_mpath.csv",
-                                NEVI_MPATH_LABELS, r["conf_mpath"])
+    class_hits = class_total = 0
+    ambiguous_hits = ambiguous_total = 0
+    unambiguous_hits = unambiguous_total = 0
+    mgmt_hits = mgmt_total = 0
+    consistent = consistency_total = 0
+    tp = fp = tn = fn = 0
 
-            repeat = r["repeat_rows"] + [{
-                "case_id":            "_OVERALL",
-                "traditional_agree":  r["trad_agree"],
-                "traditional_grades": f"{r['trad_agree']}/{len(r['repeat_rows'])} cases",
-                "mpath_agree":        r["mpath_agree"],
-                "mpath_grades":       f"{r['mpath_agree']}/{len(r['repeat_rows'])} cases",
-            }]
-            write_csv(OUT_DIR / "repeat_agreement_Nevus.csv", repeat)
+    for log in logs:
+        case_id = log["case_id"]
+        gt_row = gt.get(case_id, {})
+        parsed = log.get("parsing", {}).get("parsed", {})
 
-        # Retrieval table
-        tbl = build_retrieval_table(manifest, pathway)
-        write_csv(OUT_DIR / f"retrieval_table_{pathway}.csv", tbl)
+        reference = normalize_nevus(gt_row.get("reference_stratum", ""))
+        model = normalize_nevus(parsed.get("stratum_label", ""))
+        if not reference or not model:
+            continue
 
-    # Concordance (all arms in one file)
-    write_concordance_csv(OUT_DIR / "concordance_wilson.csv",
-                          cscc_result, nevus_result)
+        ref_subtype = (gt_row.get("melanoma_subtype", "") or "").strip()
+        ref_breslow = _float_or_none(gt_row.get("breslow_mm", ""))
 
-    # Context invariance
-    inv_text = check_context_invariance(all_logs)
-    (OUT_DIR / "context_invariance.txt").write_text(inv_text, encoding="utf-8")
-    print("\nContext invariance:")
-    print(inv_text)
+        # Arm 1: four-way stratum
+        hit = int(reference == model)
+        pairs.append((reference, model))
+        matrix[(reference, model)] += 1
+        by_stratum[reference].append(hit)
 
-    # Parser fallback summary
-    write_parser_summary(OUT_DIR / "parser_fallback_summary.csv", all_logs)
+        # Arm 2: MPATH-Dx v2.0 class
+        model_class = str(parsed.get("mpath_dx_v2_class", "") or "").strip()
+        expected: set[str] = set()
+        class_hit = None
+        ambiguous = False
+        # A per-case reference class assigned by the dermatopathologist
+        # always wins over the stratum-derived set.
+        explicit = (gt_row.get("mpath_dx_v2_reference", "") or "").strip()
+        if explicit and mpath_dx.is_valid_class(explicit):
+            expected = {mpath_dx._normalise(explicit)}
+        elif reference:
+            try:
+                expected = mpath_dx.expected_classes(
+                    reference, ref_subtype, ref_breslow)
+                ambiguous = mpath_dx.is_ambiguous(
+                    reference, ref_subtype, ref_breslow)
+            except ValueError:
+                expected = set()
 
-    print(f"\nAll outputs written to {OUT_DIR}/")
-    print("Fill retrieval_table_*.csv  content_type column by hand before submitting.")
+        if expected and model_class and mpath_dx.is_valid_class(model_class):
+            normalised = mpath_dx._normalise(model_class)
+            class_hit = int(normalised in expected)
+            class_total += 1
+            class_hits += class_hit
+            if ambiguous:
+                ambiguous_total += 1
+                ambiguous_hits += class_hit
+            else:
+                unambiguous_total += 1
+                unambiguous_hits += class_hit
 
-    # Quick self-check on Wilson
-    lo20, hi20 = wilson(20, 20)
-    lo54, hi54 = wilson(54, 60)
-    print(f"\nWilson self-check: wilson(20,20)=({lo20:.4f},{hi20:.4f})  "
-          f"expect (0.8389,1.0000)")
-    print(f"                   wilson(54,60)=({lo54:.4f},{hi54:.4f})  "
-          f"expect (0.7985,0.9534)")
+            # Arm 3: re-excision decision
+            ref_mgmt = any(mpath_dx.requires_reexcision(c) for c in expected)
+            ref_mgmt_certain = len({
+                mpath_dx.requires_reexcision(c) for c in expected}) == 1
+            if ref_mgmt_certain:
+                model_mgmt = mpath_dx.requires_reexcision(normalised)
+                mgmt_total += 1
+                mgmt_hits += int(model_mgmt == ref_mgmt)
+
+        # Arm 4: melanoma detection
+        ref_mel = reference == "melanoma"
+        model_mel = model == "melanoma"
+        if ref_mel and model_mel:
+            tp += 1
+        elif ref_mel and not model_mel:
+            fn += 1
+        elif not ref_mel and model_mel:
+            fp += 1
+        else:
+            tn += 1
+
+        flags = parsed.get("consistency_flags")
+        if flags is None:
+            flags = log.get("parsing", {}).get("parsed", {}).get(
+                "consistency_flags", [])
+        consistency_total += 1
+        consistent += int(not flags)
+
+        rows.append({
+            "case_id": case_id,
+            "replicate": log.get("replicate"),
+            "reference_stratum": reference,
+            "model_stratum": model,
+            "concordant": hit,
+            "reference_melanoma_subtype": ref_subtype,
+            "reference_breslow_mm": gt_row.get("breslow_mm", ""),
+            "model_melanoma_subtype": parsed.get("melanoma_subtype", ""),
+            "model_breslow_mm": parsed.get("breslow_estimate_mm", ""),
+            "expected_mpath_classes": "|".join(sorted(expected)),
+            "mpath_ambiguous": int(ambiguous),
+            "model_mpath_class": model_class,
+            "mpath_concordant": "" if class_hit is None else class_hit,
+            "confidence_level": parsed.get("confidence_level", ""),
+            "consistency_flags": "|".join(flags or []),
+            "magnifications_sent": "|".join(
+                log.get("image_set", {}).get("magnifications_sent", [])),
+        })
+
+    n = len(pairs)
+    nc = sum(1 for a, b in pairs if a == b)
+    sensitivity = tp / (tp + fn) if (tp + fn) else float("nan")
+    specificity = tn / (tn + fp) if (tn + fp) else float("nan")
+
+    return {
+        "rows": rows, "matrix": matrix, "labels": NEVUS_LABELS,
+        "n_total": n, "n_concordant": nc,
+        "kappa": cohen_kappa(pairs, NEVUS_LABELS),
+        "weighted_kappa": weighted_kappa(pairs, NEVUS_LABELS),
+        "by_stratum": {s: (sum(v), len(v)) for s, v in by_stratum.items()},
+        "class_hits": class_hits, "class_total": class_total,
+        "ambiguous_hits": ambiguous_hits, "ambiguous_total": ambiguous_total,
+        "unambiguous_hits": unambiguous_hits,
+        "unambiguous_total": unambiguous_total,
+        "mgmt_hits": mgmt_hits, "mgmt_total": mgmt_total,
+        "melanoma": {"tp": tp, "fp": fp, "tn": tn, "fn": fn,
+                     "sensitivity": sensitivity, "specificity": specificity},
+        "consistent": consistent, "consistency_total": consistency_total,
+    }
+
+
+# ── reporting ────────────────────────────────────────────────────────
+
+def write_csv(path: pathlib.Path, rows: list[dict]) -> None:
+    if not rows:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_confusion(path: pathlib.Path, labels: list[str], matrix) -> None:
+    rows = []
+    for ref in labels:
+        row = {"reference": ref}
+        for model in labels:
+            row[model] = matrix.get((ref, model), 0)
+        rows.append(row)
+    write_csv(path, rows)
+
+
+def arm_row(name: str, hits: int, total: int, note: str = "") -> dict:
+    low, high = wilson(hits, total)
+    return {
+        "arm": name, "n_concordant": hits, "n_total": total,
+        "concordance": round(hits / total, 4) if total else "",
+        "ci95_low": round(low, 4), "ci95_high": round(high, 4),
+        "note": note,
+    }
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--outdir", default="results")
+    args = ap.parse_args()
+    outdir = pathlib.Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+
+    load_manifest()  # fail early if the run was never manifested
+    arms: list[dict] = []
+    notes: list[str] = []
+
+    # CSCC
+    cscc_logs, cscc_stale = partition_by_protocol(load_logs("CSCC"))
+    if cscc_stale:
+        notes.append(f"CSCC: excluded {len(cscc_stale)} log(s) from an "
+                     f"earlier protocol version.")
+    if cscc_logs:
+        cscc = score_cscc(cscc_logs, load_ground_truth("CSCC"))
+        write_csv(outdir / "cscc_cases.csv", cscc["rows"])
+        write_confusion(outdir / "cscc_confusion.csv",
+                        cscc["labels"], cscc["matrix"])
+        arms.append(arm_row(
+            "CSCC_3tier", cscc["n_concordant"], cscc["n_total"],
+            f"kappa={cscc['kappa']:.3f} "
+            f"quadratic-weighted={cscc['weighted_kappa']:.3f}"))
+        for grade, (hits, total) in sorted(cscc["by_grade"].items()):
+            arms.append(arm_row(f"CSCC_3tier::{grade}", hits, total,
+                                "per-reference-grade breakdown"))
+
+    # Melanocytic
+    nevus_logs, nevus_stale = partition_by_protocol(load_logs("Nevus"))
+    if nevus_stale:
+        notes.append(f"Nevus: excluded {len(nevus_stale)} log(s) from an "
+                     f"earlier protocol version.")
+    if nevus_logs:
+        nevus = score_nevus(nevus_logs, load_ground_truth("Nevus"))
+        write_csv(outdir / "nevus_cases.csv", nevus["rows"])
+        write_confusion(outdir / "nevus_confusion.csv",
+                        nevus["labels"], nevus["matrix"])
+
+        arms.append(arm_row(
+            "Nevus_stratum_4way", nevus["n_concordant"], nevus["n_total"],
+            f"kappa={nevus['kappa']:.3f} "
+            f"quadratic-weighted={nevus['weighted_kappa']:.3f}"))
+        for stratum, (hits, total) in sorted(nevus["by_stratum"].items()):
+            arms.append(arm_row(f"Nevus_stratum_4way::{stratum}", hits, total,
+                                "per-reference-stratum breakdown"))
+
+        arms.append(arm_row(
+            "Nevus_MPATH_v2_class", nevus["class_hits"], nevus["class_total"],
+            "concordant if the model class is in the expected set"))
+        arms.append(arm_row(
+            "Nevus_MPATH_v2_class::unambiguous",
+            nevus["unambiguous_hits"], nevus["unambiguous_total"],
+            "strata with exactly one expected class"))
+        arms.append(arm_row(
+            "Nevus_MPATH_v2_class::ambiguous",
+            nevus["ambiguous_hits"], nevus["ambiguous_total"],
+            "moderate stratum: v2.0 expects {I, II}, so either is counted "
+            "concordant - report this separately"))
+        arms.append(arm_row(
+            "Nevus_management_binary", nevus["mgmt_hits"], nevus["mgmt_total"],
+            "Class I vs Class II+ (re-excision decision)"))
+
+        mel = nevus["melanoma"]
+        sens_low, sens_high = wilson(mel["tp"], mel["tp"] + mel["fn"])
+        spec_low, spec_high = wilson(mel["tn"], mel["tn"] + mel["fp"])
+        arms.append({
+            "arm": "Nevus_melanoma_detection::sensitivity",
+            "n_concordant": mel["tp"], "n_total": mel["tp"] + mel["fn"],
+            "concordance": round(mel["sensitivity"], 4)
+            if mel["sensitivity"] == mel["sensitivity"] else "",
+            "ci95_low": round(sens_low, 4), "ci95_high": round(sens_high, 4),
+            "note": f"fn={mel['fn']} (melanoma called non-melanoma)",
+        })
+        arms.append({
+            "arm": "Nevus_melanoma_detection::specificity",
+            "n_concordant": mel["tn"], "n_total": mel["tn"] + mel["fp"],
+            "concordance": round(mel["specificity"], 4)
+            if mel["specificity"] == mel["specificity"] else "",
+            "ci95_low": round(spec_low, 4), "ci95_high": round(spec_high, 4),
+            "note": f"fp={mel['fp']} (non-melanoma called melanoma)",
+        })
+        arms.append(arm_row(
+            "Nevus_internal_consistency",
+            nevus["consistent"], nevus["consistency_total"],
+            "model output self-agreement, not concordance with truth"))
+
+    write_csv(outdir / "concordance.csv", arms)
+
+    # Parser summary: under v2.0 any fallback at all is a defect.
+    parser_rows = []
+    for pathway in config.PATHWAYS:
+        logs, _ = partition_by_protocol(load_logs(pathway))
+        strategies = Counter(
+            log.get("parsing", {}).get("strategy_used", "") for log in logs)
+        fallbacks = sum(1 for log in logs
+                        if log.get("parsing", {}).get("fallback_invoked"))
+        truncated = sum(1 for log in logs
+                        if log.get("response", {}).get(
+                            "stop_reason") == "max_tokens")
+        parser_rows.append({
+            "pathway": pathway, "n_logs": len(logs),
+            "fallback_invoked": fallbacks,
+            "truncated_max_tokens": truncated,
+            "strategies": json.dumps(dict(strategies)),
+        })
+    write_csv(outdir / "parser_summary.csv", parser_rows)
+
+    print(f"\nWrote {outdir}/concordance.csv and per-case tables.\n")
+    for row in arms:
+        if "::" in row["arm"]:
+            continue
+        print(f"  {row['arm']:36} {row['n_concordant']:>4}/{row['n_total']:<4}"
+              f"  {row['concordance']}  {row['note']}")
+    for row in parser_rows:
+        if row["fallback_invoked"] or row["truncated_max_tokens"]:
+            print(f"\n  ! {row['pathway']}: {row['fallback_invoked']} "
+                  f"fallback(s), {row['truncated_max_tokens']} truncated. "
+                  f"Under v2.0 the schema is enforced, so either is a defect.")
+    for note in notes:
+        print(f"\n  ! {note}")
 
 
 if __name__ == "__main__":

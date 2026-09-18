@@ -1,0 +1,5 @@
+case_id,reference_stratum,melanoma_subtype,breslow_mm,mpath_dx_v2_reference,reference_source,image_source_registry,notes
+NEV-0001,mild,not_applicable,,I,consensus_of_two_dermpaths,,example row - delete before use
+NEV-0002,moderate,not_applicable,,,consensus_of_two_dermpaths,,"leave mpath_dx_v2_reference blank to accept {I,II}; fill it in to score against one class"
+NEV-0003,melanoma,invasive,1.4,IV,consensus_of_two_dermpaths,,example row - delete before use
+NEV-0004,melanoma,in_situ,,II,consensus_of_two_dermpaths,,"melanoma in situ is Class II under v2.0, same class as severe dysplasia"

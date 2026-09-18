@@ -2,11 +2,36 @@ import os
 import sys
 from typing import List, Dict, Any
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-import streamlit as st
+try:
+    # Current home of the splitter. `langchain.text_splitter` is a
+    # re-export of this same class, so chunking is unchanged; importing
+    # it directly avoids pulling in the whole langchain metapackage.
+    from langchain_text_splitters import RecursiveCharacterTextSplitter
+except ImportError:  # pragma: no cover - older environments
+    from langchain.text_splitter import RecursiveCharacterTextSplitter
 import chromadb
 import hashlib as _hashlib
 from chromadb.config import Settings
+
+# ── optional Streamlit ───────────────────────────────────────────────
+# v1 imported streamlit unconditionally and called st.info/st.success at
+# import time, so run_tests.py had to monkey-patch four st.* functions to
+# stay quiet in batch. Messages now go to Streamlit only when a session is
+# actually running, and to stdout otherwise.
+
+def _notify(kind: str, message: str) -> None:
+    try:
+        import streamlit as st
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        if get_script_run_ctx() is not None:
+            getattr(st, kind)(message)
+            return
+    except Exception:
+        pass
+    if kind in ("error", "warning"):
+        import sys
+        print(f"[{kind}] {message}", file=sys.stderr)
+
 
 class NeviRAGSystem:
     """RAG system for processing medical literature and providing context for nevi grading"""
@@ -41,7 +66,7 @@ class NeviRAGSystem:
                 metadata={"description": "Medical literature for atypical nevi and melanocytic lesion grading"}
             )
         except Exception as e:
-            st.error(f"Failed to setup ChromaDB for nevi: {str(e)}")
+            _notify("error", f"Failed to setup ChromaDB for nevi: {str(e)}")
             raise
     
     def process_documents(self):
@@ -49,7 +74,7 @@ class NeviRAGSystem:
         try:
             # Check if documents are already processed
             if self.collection and self.collection.count() > 0:
-                st.info("Nevi documents already processed in ChromaDB")
+                _notify("info", "Nevi documents already processed in ChromaDB")
                 return
                 
             # Get the PDF files for nevi grading
@@ -90,7 +115,7 @@ class NeviRAGSystem:
                         doc_id += 1
                         
                 else:
-                    st.warning(f"Nevi PDF file not found: {pdf_file}")
+                    _notify("warning", f"Nevi PDF file not found: {pdf_file}")
             
             if not all_texts:
                 raise Exception("No nevi PDF documents found to process")
@@ -103,10 +128,10 @@ class NeviRAGSystem:
                     ids=all_ids
                 )
             
-            st.success(f"Processed {len(all_texts)} nevi document chunks successfully!")
+            _notify("success", f"Processed {len(all_texts)} nevi document chunks successfully!")
             
         except Exception as e:
-            st.error(f"Failed to process nevi documents: {str(e)}")
+            _notify("error", f"Failed to process nevi documents: {str(e)}")
             raise
     
     def query_documents(self, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
@@ -147,7 +172,7 @@ class NeviRAGSystem:
             return documents
             
         except Exception as e:
-            st.error(f"Failed to query nevi documents: {str(e)}")
+            _notify("error", f"Failed to query nevi documents: {str(e)}")
             return []
     
     def get_relevant_context(self, query: str) -> Dict[str, Any]:
@@ -166,7 +191,7 @@ class NeviRAGSystem:
             return context
             
         except Exception as e:
-            st.error(f"Failed to retrieve nevi context: {str(e)}")
+            _notify("error", f"Failed to retrieve nevi context: {str(e)}")
             return {'documents': [], 'combined_text': ''}
     
     def get_grading_criteria(self) -> str:

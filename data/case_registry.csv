@@ -1,0 +1,1 @@
+case_id,pathway,reference_stratum,melanoma_subtype,breslow_mm,mpath_dx_v2_reference,svs_path,svs_sha256,tile_whole_slide,tile_4x,tile_10x,tile_40x,tile_selection_method,tiles_chosen_by,tiles_chooser_blinded,image_source_registry,native_objective_power,notes
