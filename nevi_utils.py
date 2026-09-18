@@ -31,104 +31,159 @@ def get_confidence_color(confidence: str) -> str:
     }
     return color_map.get(confidence, '#6c757d')  # Default gray
 
+def get_mpath_class_color(mpath_class: str) -> str:
+    """Colour for an MPATH-Dx v2.0 class."""
+    return {
+        "0": "#6c757d",    # nondiagnostic, grey
+        "I": "#28a745",    # low-grade atypia, green
+        "II": "#fd7e14",   # high-grade atypia, orange
+        "III": "#dc3545",  # melanoma pT1a, red
+        "IV": "#a71d2a",   # melanoma >=pT1b, dark red
+    }.get(str(mpath_class).strip(), "#6c757d")
+
+
+def display_magnification_evidence(result: Dict[str, Any]):
+    """What the model says it saw at each power.
+
+    Worth showing rather than burying: a finding attributed to a
+    magnification that cannot resolve it is the most legible way to spot
+    a confabulated read.
+    """
+    evidence = result.get("magnification_evidence") or []
+    if not evidence:
+        return
+    st.subheader("Evidence by magnification")
+    for item in evidence:
+        if isinstance(item, dict):
+            st.write(f"**{item.get('magnification', '?')}** - "
+                     f"{item.get('finding', '')}")
+
+
 def display_nevi_results(result: Dict[str, Any]):
-    """Display nevi analysis results in a formatted way"""
-    
-    # Get grades and confidence
-    traditional_grade = result.get('traditional_grade', 'Unknown')
-    mpath_grade = result.get('mpath_grade', 'Unknown')
-    confidence = result.get('confidence_level', 'Low')
-    
-    # Get colors
-    traditional_color = get_traditional_grade_color(traditional_grade)
-    mpath_color = get_mpath_grade_color(mpath_grade)
-    confidence_color = get_confidence_color(confidence)
-    
-    # Main result display with both grading systems
+    """Render a melanocytic grading result."""
+    import mpath_dx
+
+    category = result.get("lesion_category", "unknown")
+    stratum = result.get("stratum_label", "unknown")
+    grade = result.get("dysplasia_grade", "not_applicable")
+    subtype = result.get("melanoma_subtype", "not_applicable")
+    breslow = result.get("breslow_estimate_mm")
+    mclass = str(result.get("mpath_dx_v2_class", "") or "")
+    confidence = result.get("confidence_level", "Low")
+
+    is_melanoma = category == "melanoma" or stratum == "melanoma"
+    if is_melanoma:
+        headline = "Melanoma"
+        if subtype == "in_situ":
+            headline += " (in situ)"
+        elif subtype == "invasive":
+            headline += " (invasive"
+            headline += f", Breslow ~{breslow} mm)" if breslow else ")"
+        headline_color = "#dc3545"
+    else:
+        headline = f"{str(grade).capitalize()} dysplasia"
+        headline_color = get_traditional_grade_color(
+            f"{str(grade).capitalize()} Dysplasia")
+
+    class_label = ""
+    if mclass in mpath_dx.CLASS_DEFINITIONS:
+        class_label = mpath_dx.CLASS_DEFINITIONS[mclass]["label"]
+
     st.markdown(
         f"""
-        <div style='padding: 20px; border-radius: 10px; border: 2px solid {traditional_color}; margin-bottom: 20px;'>
-            <h2 style='color: {traditional_color}; margin-top: 0;'>🔬 Traditional Grade: {traditional_grade}</h2>
-            <h3 style='color: {mpath_color}; margin: 10px 0;'>📊 MPATH-Dx Grade: {mpath_grade}</h3>
-            <p style='color: {confidence_color}; font-size: 18px; margin-bottom: 0;'>
-                <strong>Confidence Level: {confidence}</strong>
+        <div style='padding: 20px; border-radius: 10px;
+                    border: 2px solid {headline_color}; margin-bottom: 20px;'>
+            <h2 style='color: {headline_color}; margin-top: 0;'>{headline}</h2>
+            <h3 style='color: {get_mpath_class_color(mclass)}; margin: 10px 0;'>
+                MPATH-Dx v2.0 Class {mclass} - {class_label}
+            </h3>
+            <p style='color: {get_confidence_color(confidence)};
+                      font-size: 18px; margin-bottom: 0;'>
+                <strong>Confidence: {confidence}</strong>
             </p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
-    
-    # Create two columns for features
+
+    if mclass and mpath_dx.is_valid_class(mclass):
+        if mpath_dx.requires_reexcision(mclass):
+            st.warning("Class II or above: re-excision indicated.")
+        else:
+            st.info("Class I: re-excision not indicated on this basis.")
+
+    flags = result.get("consistency_flags") or []
+    if flags:
+        st.error(
+            "This output is internally inconsistent, which usually means the "
+            "grade should not be taken at face value:\n"
+            + "\n".join(f"- {flag}" for flag in flags))
+
     col1, col2 = st.columns(2)
-    
     with col1:
-        # Architectural features
-        architectural_features = result.get('architectural_features', [])
-        if architectural_features:
-            st.subheader("🏗️ Architectural Features")
-            for feature in architectural_features:
-                if feature.strip():
-                    st.write(f"• {feature}")
-    
+        features = result.get("architectural_features", [])
+        if features:
+            st.subheader("Architectural features")
+            for feature in features:
+                if str(feature).strip():
+                    st.write(f"- {feature}")
     with col2:
-        # Cytological features
-        cytological_features = result.get('cytological_features', [])
-        if cytological_features:
-            st.subheader("🧬 Cytological Features")
-            for feature in cytological_features:
-                if feature.strip():
-                    st.write(f"• {feature}")
-    
-    # Additional observations
-    additional_obs = result.get('additional_observations', '')
-    if additional_obs and additional_obs.strip():
-        st.subheader("📝 Additional Observations")
-        st.write(additional_obs)
-    
-    # Clinical significance
-    clinical_sig = result.get('clinical_significance', '')
-    if clinical_sig and clinical_sig.strip():
-        st.subheader("⚕️ Clinical Significance")
-        st.write(clinical_sig)
-    
-    # Context information
-    context_used = result.get('context_used', False)
-    if context_used:
-        st.success("✅ Analysis based on medical literature from nevi knowledge base")
+        features = result.get("cytological_features", [])
+        if features:
+            st.subheader("Cytological features")
+            for feature in features:
+                if str(feature).strip():
+                    st.write(f"- {feature}")
+
+    display_magnification_evidence(result)
+
+    rationale = result.get("grading_rationale", "")
+    if str(rationale).strip():
+        st.subheader("Grading rationale")
+        st.write(rationale)
+
+    significance = result.get("clinical_significance", "")
+    if str(significance).strip():
+        st.subheader("Clinical significance")
+        st.write(significance)
+
+    if result.get("context_used"):
+        st.success("Analysis drew on the retrieved literature context.")
     else:
-        st.warning("⚠️ Limited context from nevi knowledge base")
-    
-    # Grading system explanation
-    with st.expander("📚 Grading System Reference"):
-        st.markdown("""
-        ### Traditional 3-Tier System:
-        - **Mild Dysplasia**: Minimal architectural disorder, mild nuclear atypia
-        - **Moderate Dysplasia**: Moderate architectural disorder, moderate nuclear atypia  
-        - **Severe Dysplasia**: Significant architectural disorder, marked nuclear atypia
-        
-        ### MPATH-Dx 2-Tier System:
-        - **Low-Grade Dysplasia**: Minimal risk, corresponds to mild dysplasia
-        - **High-Grade Dysplasia**: Higher clinical significance, corresponds to moderate-severe dysplasia
-        """)
-    
-    # Expandable section for full analysis
-    with st.expander("📄 View Full Analysis Report"):
-        raw_analysis = result.get('raw_analysis', 'No detailed analysis available')
-        st.text_area("Complete Analysis", raw_analysis, height=300, disabled=True)
-    
-    # Medical disclaimer
+        st.warning("No literature context was retrieved.")
+
+    with st.expander("MPATH-Dx v2.0 reference"):
+        st.markdown(
+            "Version 2.0 replaced the five-class v1.0 schema with four "
+            "classes and removed the standalone moderate-atypia category. "
+            "Class I is low-grade (mild-to-moderate) atypia; Class II is "
+            "high-grade (high-end moderate-to-severe) atypia and includes "
+            "melanoma in situ; Class III is invasive melanoma under 0.8 mm; "
+            "Class IV is 0.8 mm or greater.")
+        for cls in mpath_dx.CLASSES:
+            definition = mpath_dx.CLASS_DEFINITIONS[cls]
+            st.write(f"**Class {cls} - {definition['label']}**: "
+                     f"{definition['definition']}")
+        st.caption(mpath_dx.CITATION)
+
+    with st.expander("Raw model output"):
+        st.text_area("JSON", result.get("raw_analysis", ""), height=300,
+                     disabled=True)
+
     st.markdown(
         """
-        <div style='background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin-top: 20px;'>
-            <h4 style='color: #856404; margin-top: 0;'>⚠️ Medical Disclaimer</h4>
+        <div style='background-color: #fff3cd; border: 1px solid #ffeaa7;
+                    border-radius: 5px; padding: 15px; margin-top: 20px;'>
+            <h4 style='color: #856404; margin-top: 0;'>Medical disclaimer</h4>
             <p style='color: #856404; margin-bottom: 0;'>
-                This analysis is for research and educational purposes only. 
-                Clinical decisions should always be made by qualified dermatopathologists and medical professionals.
+                Research and educational use only. Clinical decisions are
+                made by qualified dermatopathologists.
             </p>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
+
 
 def initialize_nevi_session_state():
     """Initialize Streamlit session state variables for nevi analysis"""

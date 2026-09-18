@@ -15,6 +15,8 @@ Checks are numbered so failures cite a specific ID.
 import argparse
 import hashlib
 import json
+
+import config
 import pathlib
 import sys
 from typing import Any, Dict, List, Optional, Tuple
@@ -70,15 +72,16 @@ def print_results(verbose: bool = False):
 
 # ── manifest checks ───────────────────────────────────────────────────────────
 
+# Field lists come from the analyzers so the verifier cannot drift away
+# from the schema that actually ran.
+from image_analyzer import OUTPUT_SCHEMA_FIELDS as CSCC_SCHEMA_FIELDS
+from nevi_analyzer import OUTPUT_SCHEMA_FIELDS as NEVUS_SCHEMA_FIELDS
+
 EXPECTED = {
-    "CSCC":  {"chunk_count": 72,  "result_count": 35, "max_tokens": 1500,
-              "schema": ["primary_grade","confidence_level","keratinization_present",
-                         "atypia_level","key_features","additional_observations"]},
-    "Nevus": {"chunk_count": 294, "result_count": 60, "max_tokens": 1500,
-              "schema": ["traditional_grade","mpath_grade","confidence_level",
-                         "nuclear_abnormality_count","architectural_features",
-                         "cytological_features","grading_rationale",
-                         "clinical_significance"]},
+    "CSCC":  {"chunk_count": 72,  "result_count": 35, "max_tokens": config.MAX_TOKENS,
+              "schema": CSCC_SCHEMA_FIELDS},
+    "Nevus": {"chunk_count": 294, "result_count": 60, "max_tokens": config.MAX_TOKENS,
+              "schema": NEVUS_SCHEMA_FIELDS},
 }
 
 SHA256_EMPTY = _sha256("")   # e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
@@ -312,18 +315,30 @@ CSCC_PARSED_SCHEMA = {
     "primary_grade": str, "confidence_level": str,
     "keratinization_present": (bool, type(None)),
     "atypia_level": (str, type(None)),
-    "key_features": list, "additional_observations": (str, type(None)),
+    "key_features": list,
+    "magnification_evidence": list,
+    "additional_observations": (str, type(None)),
 }
 
 NEVI_PARSED_SCHEMA = {
-    "traditional_grade": str, "mpath_grade": str, "confidence_level": str,
-    "nuclear_abnormality_count": (int, float),
-    "architectural_features": list, "cytological_features": list,
+    "lesion_category": str,
+    "dysplasia_grade": str,
+    "melanoma_subtype": str,
+    "breslow_estimate_mm": (int, float, type(None)),
+    "stratum_label": str,
+    "mpath_dx_v2_class": str,
+    "confidence_level": str,
+    "architectural_features": list,
+    "cytological_features": list,
+    "magnification_evidence": list,
     "grading_rationale": (str, type(None)),
     "clinical_significance": (str, type(None)),
 }
 
 VALID_PARSE_STRATEGIES = {
+    "structured_output", "failed",
+    # v1.0 strategies, kept so old logs still parse. Any of these appearing
+    # in a v2.0 log means the schema was not enforced.
     "direct_json", "regex", "keyword_inference", "keyword_fallback",
 }
 
@@ -333,9 +348,17 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
     pfx = log_path.replace("/", "_").replace("\\", "_")[:30]
 
     # ── envelope ─────────────────────────────────────────────────────────────
-    check(f"[{pfx}] L01", log.get("log_version") == "1.0",
-          "log_version == 1.0",
-          f"log_version expected '1.0', got {log.get('log_version')!r}")
+    log_version = log.get("log_version")
+    check(f"[{pfx}] L01", log_version == config.LOG_VERSION,
+          f"log_version == {config.LOG_VERSION}",
+          f"log_version expected {config.LOG_VERSION!r}, got {log_version!r}. "
+          "A v1.0 log holds one image and no magnification; it is not "
+          "comparable to a v2.0 log and must not be pooled with one.")
+
+    check(f"[{pfx}] L01b", log.get("protocol_version") == config.PROTOCOL_VERSION,
+          f"protocol_version == {config.PROTOCOL_VERSION}",
+          f"protocol_version = {log.get('protocol_version')!r}, expected "
+          f"{config.PROTOCOL_VERSION!r}")
 
     check(f"[{pfx}] L02", log.get("manifest_session_id") == manifest_session_id,
           f"manifest_session_id matches manifest ({manifest_session_id[:20]}…)",
@@ -359,46 +382,137 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
           "timestamp_utc present",
           "timestamp_utc missing")
 
-    # ── image ─────────────────────────────────────────────────────────────────
-    img = log.get("image", {})
-    check(f"[{pfx}] L07", "source_registry" in img,
-          "image.source_registry key present",
-          "image.source_registry key missing")
-    check(f"[{pfx}] L08", bool(img.get("source_filename")),
-          f"image.source_filename = {img.get('source_filename')!r}",
-          "image.source_filename missing or empty")
-    check(f"[{pfx}] L09", _is_sha256(img.get("source_sha256", "")),
-          "image.source_sha256 is 64-char hex",
-          "image.source_sha256 missing or malformed")
+    # ── image set (protocol v2.0: four magnifications per case) ──────────────
+    iset = log.get("image_set", {})
+    images = log.get("images", [])
 
-    sdims = img.get("source_dimensions_px", [0, 0])
-    check(f"[{pfx}] L10",
-          isinstance(sdims, list) and len(sdims) == 2 and all(d > 0 for d in sdims),
-          f"image.source_dimensions_px = {sdims}",
-          f"image.source_dimensions_px invalid: {sdims}")
+    check(f"[{pfx}] L07", "source_registry" in iset,
+          "image_set.source_registry key present",
+          "image_set.source_registry key missing")
 
-    check(f"[{pfx}] L11", img.get("sent_media_type") in ("image/jpeg", "image/png"),
-          f"image.sent_media_type = {img.get('sent_media_type')!r}",
-          f"image.sent_media_type {img.get('sent_media_type')!r} not in [image/jpeg, image/png]")
+    expected_mags = list(config.REQUIRED_MAGNIFICATIONS)
+    sent_mags = iset.get("magnifications_sent", [])
+    check(f"[{pfx}] L08", sent_mags == expected_mags,
+          f"image_set.magnifications_sent == {expected_mags}",
+          f"image_set.magnifications_sent = {sent_mags}, expected "
+          f"{expected_mags}. A case graded on a different set of powers is "
+          "not comparable to the rest of the batch.")
 
-    tdims = img.get("sent_dimensions_px", [0, 0])
-    check(f"[{pfx}] L12",
-          isinstance(tdims, list) and len(tdims) == 2 and all(d > 0 for d in tdims),
-          f"image.sent_dimensions_px = {tdims}",
-          f"image.sent_dimensions_px invalid: {tdims}")
+    check(f"[{pfx}] L09", len(images) == len(expected_mags),
+          f"images has {len(expected_mags)} entries",
+          f"images has {len(images)} entries, expected {len(expected_mags)}")
 
-    check(f"[{pfx}] L13", isinstance(img.get("sent_bytes"), int) and img["sent_bytes"] > 0,
-          f"image.sent_bytes = {img.get('sent_bytes')}",
-          f"image.sent_bytes must be int > 0, got {img.get('sent_bytes')!r}")
+    check(f"[{pfx}] L10", _is_sha256(iset.get("set_sha256", "")),
+          "image_set.set_sha256 is 64-char hex",
+          "image_set.set_sha256 missing or malformed - without it two runs "
+          "of the same case cannot be compared in one step")
 
-    check(f"[{pfx}] L14", _is_sha256(img.get("sent_sha256", "")),
-          "image.sent_sha256 is 64-char hex",
-          "image.sent_sha256 missing or malformed — "
-          "without this, process_image_file vs Streamlit path cannot be compared")
+    check(f"[{pfx}] L11",
+          isinstance(iset.get("total_sent_bytes"), int)
+          and iset["total_sent_bytes"] > 0,
+          f"image_set.total_sent_bytes = {iset.get('total_sent_bytes')}",
+          f"image_set.total_sent_bytes invalid: "
+          f"{iset.get('total_sent_bytes')!r}")
 
-    check(f"[{pfx}] L15", isinstance(img.get("resize_applied"), bool),
-          f"image.resize_applied is bool ({img.get('resize_applied')})",
-          "image.resize_applied is not a bool")
+    warn(f"[{pfx}] L12", bool(iset.get("tile_selection_method")),
+         f"image_set.tile_selection_method = "
+         f"{iset.get('tile_selection_method')!r}",
+         "image_set.tile_selection_method is empty - the record cannot say "
+         "who chose the 4x/10x/40x fields or whether they were blinded")
+
+    # Per-image checks. These scale the check count with the magnification
+    # set, which is the point: each frame the model saw must be accounted
+    # for individually.
+    for idx, img in enumerate(images):
+        mag = img.get("magnification", f"#{idx}")
+        ipfx = f"[{pfx}] L13.{idx}"
+
+        check(f"{ipfx}a", mag in expected_mags,
+              f"images[{idx}].magnification = {mag!r}",
+              f"images[{idx}].magnification = {mag!r} not in {expected_mags}")
+
+        check(f"{ipfx}b", bool(img.get("source_filename")),
+              f"images[{idx}]({mag}).source_filename present",
+              f"images[{idx}]({mag}).source_filename missing")
+
+        check(f"{ipfx}c", _is_sha256(img.get("source_sha256", "")),
+              f"images[{idx}]({mag}).source_sha256 is 64-char hex",
+              f"images[{idx}]({mag}).source_sha256 missing or malformed")
+
+        check(f"{ipfx}d", _is_sha256(img.get("sent_sha256", "")),
+              f"images[{idx}]({mag}).sent_sha256 is 64-char hex",
+              f"images[{idx}]({mag}).sent_sha256 missing or malformed - "
+              "without it the UI and batch paths cannot be compared")
+
+        sdims = img.get("source_dimensions_px", [0, 0])
+        check(f"{ipfx}e",
+              isinstance(sdims, list) and len(sdims) == 2
+              and all(d > 0 for d in sdims),
+              f"images[{idx}]({mag}).source_dimensions_px = {sdims}",
+              f"images[{idx}]({mag}).source_dimensions_px invalid: {sdims}")
+
+        tdims = img.get("sent_dimensions_px", [0, 0])
+        check(f"{ipfx}f",
+              isinstance(tdims, list) and len(tdims) == 2
+              and all(d > 0 for d in tdims),
+              f"images[{idx}]({mag}).sent_dimensions_px = {tdims}",
+              f"images[{idx}]({mag}).sent_dimensions_px invalid: {tdims}")
+
+        check(f"{ipfx}g",
+              isinstance(tdims, list) and len(tdims) == 2
+              and max(tdims) <= config.MAX_IMAGE_EDGE_PX,
+              f"images[{idx}]({mag}) long edge <= "
+              f"{config.MAX_IMAGE_EDGE_PX} px",
+              f"images[{idx}]({mag}) long edge {max(tdims) if tdims else '?'} "
+              f"exceeds {config.MAX_IMAGE_EDGE_PX} px - the API downsamples "
+              "past this, so the extra pixels were paid for and discarded")
+
+        check(f"{ipfx}h",
+              img.get("sent_media_type") == config.OUTBOUND_MEDIA_TYPE,
+              f"images[{idx}]({mag}).sent_media_type = "
+              f"{img.get('sent_media_type')!r}",
+              f"images[{idx}]({mag}).sent_media_type = "
+              f"{img.get('sent_media_type')!r}, expected "
+              f"{config.OUTBOUND_MEDIA_TYPE!r} - a mixed codec across cases "
+              "makes them non-comparable")
+
+        check(f"{ipfx}i",
+              isinstance(img.get("sent_bytes"), int)
+              and 0 < img["sent_bytes"] <= config.MAX_IMAGE_BYTES,
+              f"images[{idx}]({mag}).sent_bytes = {img.get('sent_bytes')}",
+              f"images[{idx}]({mag}).sent_bytes = {img.get('sent_bytes')!r} "
+              f"outside (0, {config.MAX_IMAGE_BYTES}]")
+
+        quality = img.get("compression_quality")
+        check(f"{ipfx}j",
+              isinstance(quality, int)
+              and config.JPEG_QUALITY_FLOOR <= quality
+              <= config.JPEG_QUALITY_START,
+              f"images[{idx}]({mag}).compression_quality = {quality}",
+              f"images[{idx}]({mag}).compression_quality = {quality!r}; must "
+              f"be an int in [{config.JPEG_QUALITY_FLOOR}, "
+              f"{config.JPEG_QUALITY_START}]. v1.0 logged None here, so the "
+              "record could not say what the model actually saw.")
+
+        check(f"{ipfx}k", isinstance(img.get("resize_applied"), bool),
+              f"images[{idx}]({mag}).resize_applied is bool",
+              f"images[{idx}]({mag}).resize_applied = "
+              f"{img.get('resize_applied')!r}")
+
+    # Consistency between the set summary and the per-image records.
+    if images:
+        check(f"[{pfx}] L14",
+              iset.get("total_sent_bytes")
+              == sum(i.get("sent_bytes", 0) for i in images),
+              "image_set.total_sent_bytes == sum(images[].sent_bytes)",
+              "image_set.total_sent_bytes disagrees with the per-image sum")
+
+        check(f"[{pfx}] L14b",
+              len({i.get("sent_sha256") for i in images}) == len(images),
+              "all magnifications are distinct images",
+              "two or more magnifications have the same sent_sha256 - the "
+              "same frame was sent twice, so the case was not graded on "
+              f"{len(expected_mags)} distinct powers")
 
     # ── retrieval ─────────────────────────────────────────────────────────────
     ret = log.get("retrieval", {})
@@ -437,11 +551,33 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
           f"request.model = {req.get('model')!r}",
           "request.model missing or empty")
 
-    check(f"[{pfx}] L22", req.get("temperature") == 0.1,
-          "request.temperature == 0.1",
-          f"request.temperature = {req.get('temperature')!r}")
+    # This model family rejects sampling parameters, so v2.0 sends none.
+    check(f"[{pfx}] L22", req.get("temperature") is None,
+          "request.temperature is null (not sent on this model family)",
+          f"request.temperature = {req.get('temperature')!r}; sampling "
+          "parameters are rejected by this model and must not be logged as "
+          "if they were applied")
 
-    check(f"[{pfx}] L23", isinstance(req.get("max_tokens"), int) and req["max_tokens"] > 0,
+    check(f"[{pfx}] L22b", isinstance(req.get("thinking"), dict)
+          and req["thinking"].get("type") == "adaptive",
+          "request.thinking is adaptive",
+          f"request.thinking = {req.get('thinking')!r}, expected adaptive")
+
+    check(f"[{pfx}] L22c", req.get("effort") == config.EFFORT,
+          f"request.effort == {config.EFFORT!r}",
+          f"request.effort = {req.get('effort')!r}, expected {config.EFFORT!r}")
+
+    check(f"[{pfx}] L22d", req.get("schema_enforced") is True,
+          "request.schema_enforced is True",
+          "request.schema_enforced is not True - without server-side schema "
+          "enforcement a malformed response can still reach the parser")
+
+    check(f"[{pfx}] L22e", _is_sha256(req.get("output_schema_sha256", "")),
+          "request.output_schema_sha256 is 64-char hex",
+          "request.output_schema_sha256 missing - the record cannot say "
+          "which schema version the grade was produced under")
+
+    check(f"[{pfx}] L23", isinstance(req.get("max_tokens"), int) and req["max_tokens"] >= config.MAX_TOKENS,
           f"request.max_tokens = {req.get('max_tokens')}",
           f"request.max_tokens invalid: {req.get('max_tokens')!r}")
 
@@ -486,31 +622,53 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
               f"message_structure[0].role = {msg.get('role')!r}")
 
         blocks = msg.get("blocks", [])
-        block_types = {b.get("type") for b in blocks}
-        check(f"[{pfx}] L30", "text" in block_types and "image" in block_types,
-              f"message_structure blocks contain text and image (found {sorted(block_types)})",
-              f"message_structure blocks missing text or image: {sorted(block_types)}")
-
-        text_blocks  = [b for b in blocks if b.get("type") == "text"]
+        text_blocks = [b for b in blocks if b.get("type") == "text"]
         image_blocks = [b for b in blocks if b.get("type") == "image"]
+        n_mags = len(config.REQUIRED_MAGNIFICATIONS)
 
-        if text_blocks:
-            tb_sha = text_blocks[0].get("sha256", "")
-            check(f"[{pfx}] L31", tb_sha == user_sha,
-                  "message_structure text block sha256 == request.user_sha256",
-                  f"message_structure text block sha256 {tb_sha[:16]}… "
-                  f"!= user_sha256 {user_sha[:16]}… — block hash not reproducible")
+        # v2.0 envelope: one caption per image, then the images, then the
+        # prompt. 4 captions + 4 images + 1 prompt = 9 blocks.
+        check(f"[{pfx}] L30", len(image_blocks) == n_mags,
+              f"message_structure has {n_mags} image blocks",
+              f"message_structure has {len(image_blocks)} image blocks, "
+              f"expected {n_mags}")
 
-        if image_blocks:
-            ib_sha = image_blocks[0].get("sha256", "")
-            sent_sha = img.get("sent_sha256", "")
-            check(f"[{pfx}] L32", _is_sha256(ib_sha),
-                  f"message_structure image block sha256 is 64-char hex",
-                  "message_structure image block sha256 missing or malformed")
-            check(f"[{pfx}] L33", ib_sha == sent_sha,
-                  "message_structure image sha256 == image.sent_sha256",
-                  f"image block sha256 {ib_sha[:16]}… != sent_sha256 {sent_sha[:16]}… "
-                  "— the image logged in the envelope doesn't match the one sent")
+        check(f"[{pfx}] L30b", len(text_blocks) == n_mags + 1,
+              f"message_structure has {n_mags + 1} text blocks "
+              f"({n_mags} captions + 1 prompt)",
+              f"message_structure has {len(text_blocks)} text blocks, "
+              f"expected {n_mags + 1}. Unlabelled images in a multi-image "
+              "request get conflated, so every image needs its caption.")
+
+        prompt_blocks = [b for b in text_blocks if b.get("role") == "prompt"]
+        check(f"[{pfx}] L31", len(prompt_blocks) == 1
+              and prompt_blocks[0].get("sha256") == user_sha,
+              "message_structure prompt block sha256 == request.user_sha256",
+              "message_structure prompt block missing or its sha256 does not "
+              "match request.user_sha256 - the envelope is not reproducible")
+
+        # Each image block must match the corresponding images[] entry, in
+        # order. A mismatch means the log describes a different payload than
+        # the one that was sent.
+        logged_shas = [i.get("sent_sha256") for i in images]
+        envelope_shas = [b.get("sha256") for b in image_blocks]
+        check(f"[{pfx}] L32", all(_is_sha256(x or "") for x in envelope_shas),
+              "all message_structure image block sha256 are 64-char hex",
+              "one or more message_structure image sha256 missing/malformed")
+
+        check(f"[{pfx}] L33", envelope_shas == logged_shas,
+              "message_structure image sha256 list == images[].sent_sha256",
+              f"envelope image hashes {[(x or '')[:8] for x in envelope_shas]} "
+              f"!= logged {[(x or '')[:8] for x in logged_shas]} - the images "
+              "in the envelope are not the images recorded for this case")
+
+        envelope_mags = [b.get("magnification") for b in image_blocks]
+        check(f"[{pfx}] L33b",
+              envelope_mags == list(config.REQUIRED_MAGNIFICATIONS),
+              f"message_structure image order == "
+              f"{list(config.REQUIRED_MAGNIFICATIONS)}",
+              f"message_structure image order = {envelope_mags}; presentation "
+              "order is part of the protocol and must not vary between cases")
 
     check(f"[{pfx}] L34", isinstance(req.get("attempt"), int) and req["attempt"] >= 1,
           f"request.attempt = {req.get('attempt')}",

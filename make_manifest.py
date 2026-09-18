@@ -27,6 +27,9 @@ import datetime
 
 import chromadb
 
+import config
+import mpath_dx
+
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def sha256_str(text: str) -> str:
@@ -223,7 +226,7 @@ def extract_templates(analyzer_module_path: str) -> tuple[str, str]:
     import re
     # Match the f-string assigned to prompt inside create_analysis_prompt
     m = re.search(
-        r'def create_analysis_prompt.*?prompt\s*=\s*f?"""(.*?)"""',
+        r'def create_analysis_prompt.*?(?:prompt\s*=\s*|return\s+)f?"""(.*?)"""',
         src, re.DOTALL
     )
     if m:
@@ -289,10 +292,10 @@ CSCC_SUBQUERIES = [
     "WHO grading squamous cell carcinoma differentiation",
 ]
 
-CSCC_OUTPUT_SCHEMA = [
-    "primary_grade", "confidence_level", "keratinization_present",
-    "atypia_level", "key_features", "additional_observations",
-]
+# Imported rather than restated: a hardcoded copy here silently goes stale
+# the moment an analyzer schema changes, and the manifest is supposed to be
+# the record of what actually ran.
+from image_analyzer import OUTPUT_SCHEMA_FIELDS as CSCC_OUTPUT_SCHEMA
 
 # ── Nevus pathway config ──────────────────────────────────────────────────────
 
@@ -318,11 +321,7 @@ NEVUS_SUBQUERIES = [
     "WHO classification dysplastic nevi",
 ]
 
-NEVUS_OUTPUT_SCHEMA = [
-    "traditional_grade", "mpath_grade", "confidence_level",
-    "nuclear_abnormality_count", "architectural_features",
-    "cytological_features", "grading_rationale", "clinical_significance",
-]
+from nevi_analyzer import OUTPUT_SCHEMA_FIELDS as NEVUS_OUTPUT_SCHEMA
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
@@ -377,7 +376,19 @@ def main():
     sid = session_id()
 
     manifest = {
-        "manifest_version": "1.0",
+        "manifest_version": "2.0",
+        "protocol_version": config.PROTOCOL_VERSION,
+        "study_design": {
+            "n_per_stratum":     config.N_PER_STRATUM,
+            "target_n":          config.TARGET_N,
+            "target_n_total":    config.TARGET_N_TOTAL,
+            "strata":            config.STRATA_BY_PATHWAY,
+            "magnifications":    list(config.MAGNIFICATIONS),
+            "reader_arm_format": "svs (whole-slide)",
+            "model_arm_format":  "jpeg derivatives, one per magnification",
+            "mpath_dx_version":  "2.0",
+            "mpath_dx_citation": mpath_dx.CITATION,
+        },
         "session_id":       sid,
         "created_utc":      datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
 
@@ -414,9 +425,13 @@ def main():
                 },
                 "retrieval": cscc_retrieval,
                 "generation": {
-                    "model_requested":      "claude-opus-4-5-20251101",
-                    "temperature":          0.1,
-                    "max_tokens":           1500,
+                    "model_requested":      config.MODEL_ID,
+                    "temperature":          config.TEMPERATURE,
+                    "thinking":             config.THINKING,
+                    "effort":               config.EFFORT,
+                    "max_tokens":           config.MAX_TOKENS,
+                    "streamed":             config.STREAM,
+                    "schema_enforced":      True,
                     "system_template_text": cscc_sys,
                     "system_template_sha256": sha256_str(cscc_sys),   # always compute, even for ""
                     "user_template_text":   cscc_user,
@@ -443,9 +458,13 @@ def main():
                 },
                 "retrieval": nevus_retrieval,
                 "generation": {
-                    "model_requested":      "claude-opus-4-5-20251101",
-                    "temperature":          0.1,
-                    "max_tokens":           1500,
+                    "model_requested":      config.MODEL_ID,
+                    "temperature":          config.TEMPERATURE,
+                    "thinking":             config.THINKING,
+                    "effort":               config.EFFORT,
+                    "max_tokens":           config.MAX_TOKENS,
+                    "streamed":             config.STREAM,
+                    "schema_enforced":      True,
                     "system_template_text": nevus_sys,
                     "system_template_sha256": sha256_str(nevus_sys),   # always compute, even for ""
                     "user_template_text":   nevus_user,

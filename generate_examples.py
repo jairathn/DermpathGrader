@@ -13,6 +13,8 @@ To also run a live LLM call, set ANTHROPIC_API_KEY and use --live flag.
 """
 
 import sys
+import pathlib
+import csv
 import json
 import textwrap
 import argparse
@@ -228,269 +230,81 @@ def print_prompt_structure(scc_data: list, nevi_data: list):
 
 
 # ── 4. CONCORDANT / NON-CONCORDANT CASE EXAMPLES ───────────────────────────
-
-CONCORDANT_SCC = {
-    "case_id":          "SCC-001",
-    "image_file":       "well_diff_scc_sample.jpg",
-    "pathologist_grade":"Well Differentiated",
-    "llm_output": {
-        "primary_grade":          "Well Differentiated",
-        "confidence_level":       "High",
-        "keratinization_present": True,
-        "atypia_level":           "minimal",
-        "key_features": [
-            "Abundant keratin pearl formation throughout the tumor nests",
-            "Well-preserved intercellular bridges (desmosomes)",
-            "Orderly squamous maturation from peripheral basal layer inward",
-            "Rare mitotic figures, no atypical mitoses",
-        ],
-        "additional_observations":
-            "The tumor nests show centrally placed eosinophilic keratin whorls "
-            "(Malpighian corpuscles). Stromal reaction is desmoplastic but mild. "
-            "Overall architecture is cohesive without infiltrative tongues.",
-    },
-    "concordant":       True,
-    "rag_query_used":   "well differentiated squamous cell carcinoma characteristics keratinization",
-    "retrieved_snippet":
-        "Well-differentiated squamous cell carcinomas retain the basic architecture "
-        "of normal squamous epithelium and typically form keratin pearls (also called "
-        "squamous eddies or Malpighian corpuscles). The cells have abundant eosinophilic "
-        "cytoplasm, distinct cell borders, and intercellular bridges. Nuclear atypia is "
-        "minimal and mitotic figures are infrequent. — Broders (1921), Mod in WHO 2022.",
-}
-
-NON_CONCORDANT_SCC = {
-    "case_id":          "SCC-002",
-    "image_file":       "mod_diff_scc_ambiguous.jpg",
-    "pathologist_grade":"Moderately Differentiated",
-    "llm_output": {
-        "primary_grade":          "Well Differentiated",
-        "confidence_level":       "Medium",
-        "keratinization_present": True,
-        "atypia_level":           "minimal",
-        "key_features": [
-            "Focal keratin pearl formation in several nests",
-            "Moderate nuclear enlargement present in peripheral cells",
-            "Some loss of polarity at tumor–stroma interface",
-        ],
-        "additional_observations":
-            "Keratinization is present but focal. Peripheral nuclear atypia is "
-            "present but less conspicuous in the image centre. The model weighted "
-            "the keratinization heavily, potentially under-scoring the atypia.",
-    },
-    "concordant":   False,
-    "discordance_reason":
-        "Model over-weighted focal keratinization and under-weighted moderate nuclear "
-        "pleomorphism at the invasive front. Pathologist graded as Moderately "
-        "Differentiated based on >20% atypical cells across the full slide.",
-    "rag_query_used":   "moderately differentiated squamous cell carcinoma features",
-    "retrieved_snippet":
-        "Moderately differentiated SCC shows variable keratinization. Keratin pearls "
-        "may be present but less prominent than in well-differentiated tumors. Nuclear "
-        "pleomorphism is moderate, mitotic figures more frequent. Tumour architecture "
-        "may show irregular nests with focal loss of polarity. — WHO Classification 2022.",
-}
-
-CONCORDANT_NEVI = {
-    "case_id":           "NEVI-001",
-    "image_file":        "severe_dysplasia_nevi.jpg",
-    "pathologist_grade": "Severe Dysplasia",
-    "llm_output": {
-        "traditional_grade":      "Severe Dysplasia",
-        "mpath_grade":            "High-Grade Dysplasia",
-        "confidence_level":       "High",
-        "nuclear_abnormality_count": 4,
-        "architectural_features": [
-            "Confluent junctional melanocytic hyperplasia",
-            "Bridging between adjacent rete ridges",
-            "Pagetoid spread of melanocytes into upper epidermis",
-        ],
-        "cytological_features": [
-            "Marked nuclear pleomorphism (nuclei ≥2× basal keratinocytes)",
-            "Prominent eosinophilic nucleoli",
-            "Increased nuclear-to-cytoplasmic ratio",
-            "Irregular nuclear contours",
-        ],
-        "grading_rationale":
-            "Four nuclear abnormalities identified plus confluent hyperplasia and "
-            "pagetoid spread — meets ≥3 nuclear + architectural high-risk criteria "
-            "for Severe Dysplasia. MPATH-Dx maps this to High-Grade.",
-        "clinical_significance":
-            "Complete excision with adequate margins recommended. Sentinel node "
-            "evaluation not routinely indicated for dysplastic nevi alone.",
-    },
-    "concordant":      True,
-    "rag_query_used":  "severe dysplasia atypical melanocytic nevi criteria",
-    "retrieved_snippet":
-        "High-grade (severe) dysplasia is defined by the presence of three or more "
-        "cytological abnormalities or any single high-risk architectural feature such "
-        "as confluent junctional hyperplasia, pagetoid scatter, or bridging of nests. "
-        "Nuclear size exceeds twice that of adjacent basal keratinocytes. MPATH-Dx "
-        "Class III/IV. — Piepkorn et al., JAMA Dermatol 2014 / 2022 update.",
-}
-
-NON_CONCORDANT_NEVI = {
-    "case_id":           "NEVI-002",
-    "image_file":        "mild_moderate_nevi_borderline.jpg",
-    "pathologist_grade": "Mild Dysplasia",
-    "llm_output": {
-        "traditional_grade":         "Moderate Dysplasia",
-        "mpath_grade":               "Low-Grade Dysplasia",
-        "confidence_level":          "Low",
-        "nuclear_abnormality_count": 2,
-        "architectural_features": [
-            "Symmetric overall silhouette",
-            "Focal shoulder phenomenon",
-        ],
-        "cytological_features": [
-            "Slight nuclear enlargement (estimated 1.3–1.5× basal keratinocytes)",
-            "Mild chromatin irregularity in a subset of cells",
-        ],
-        "grading_rationale":
-            "Nuclear size borderline between 1× and 1.5×. Model assigned Moderate "
-            "due to two cytological findings. However confidence is Low given the "
-            "ambiguity at the mild/moderate boundary.",
-        "clinical_significance":
-            "Low-grade per MPATH-Dx; clinical management similar regardless of "
-            "mild vs moderate distinction. Re-excision margins may still apply.",
-    },
-    "concordant":   False,
-    "discordance_reason":
-        "Model over-graded to Moderate Dysplasia. The pathologist identified the "
-        "nuclear enlargement as ≤1.2× (within Mild range) and attributed the apparent "
-        "chromatin variation to section thickness/staining artefact. Low confidence "
-        "output correctly flags this as ambiguous. MPATH-Dx (Low-Grade) was concordant "
-        "even when traditional tier was not.",
-    "rag_query_used":  "mild dysplasia atypical melanocytic nevi characteristics",
-    "retrieved_snippet":
-        "Mild dysplasia is characterized by minimal cytological atypia: nuclear size "
-        "approximates that of adjacent basal keratinocytes, chromatin is evenly "
-        "distributed, and nucleoli are inconspicuous. Architectural disorder is minimal; "
-        "nests are regular and do not bridge adjacent rete ridges. MPATH-Dx Class I/II. "
-        "— Elder et al., Am J Surg Pathol 2006 / Gerami et al., 2010.",
-}
+#
+# REMOVED 2026-09-18. This section emitted hardcoded, fabricated case
+# output: invented cases SCC-001/002 and NEVI-001/002 with made-up model
+# responses, no retrieval distances, no chunk IDs, no source or page, and
+# a miscitation of MPATH-Dx. It contradicted the real Section 2 output
+# while being formatted to look exactly like it, which is precisely the
+# kind of material that ends up in a supplement by accident.
+#
+# Nothing here was salvageable, because the problem was not formatting:
+# there were no real cases behind it. The replacement below reads actual
+# logs off disk and prints nothing at all when there are none.
 
 
 def print_concordant_nonconcordant():
-    print(box("SECTION 4 — CONCORDANT & NON-CONCORDANT CASE EXAMPLES"))
+    """Print real concordant and non-concordant cases from the logs.
 
-    cases = [
-        ("SCC — CONCORDANT", CONCORDANT_SCC),
-        ("SCC — NON-CONCORDANT", NON_CONCORDANT_SCC),
-        ("NEVI — CONCORDANT", CONCORDANT_NEVI),
-        ("NEVI — NON-CONCORDANT", NON_CONCORDANT_NEVI),
-    ]
+    Reads analysis_logs/ and results/, never invents a case, and prints a
+    notice rather than an example when no run has happened yet.
+    """
+    print(box("SECTION 4 - CONCORDANT & NON-CONCORDANT CASES (FROM LOGS)"))
 
-    for label, case in cases:
-        print(f"\n  ── {label} (Case {case['case_id']}) ──")
+    results_dir = pathlib.Path("results")
+    shown = 0
 
-        if case.get("concordant"):
-            print("  ✅ CONCORDANT — LLM grade matches pathologist grade")
-        else:
-            print("  ❌ NON-CONCORDANT — LLM grade differs from pathologist grade")
+    for pathway, filename, ref_col, model_col in (
+        ("CSCC", "cscc_cases.csv", "reference_grade", "model_grade"),
+        ("Nevus", "nevus_cases.csv", "reference_stratum", "model_stratum"),
+    ):
+        table = results_dir / filename
+        if not table.exists():
+            continue
 
-        print(f"  Pathologist grade : {case.get('pathologist_grade', case.get('traditional_grade', ''))}")
+        with table.open(newline="", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+        if not rows:
+            continue
 
-        if "primary_grade" in case["llm_output"]:
-            print(f"  LLM grade         : {case['llm_output']['primary_grade']}")
-        else:
-            print(f"  LLM grade (trad.) : {case['llm_output']['traditional_grade']}")
-            print(f"  LLM grade (mpath) : {case['llm_output']['mpath_grade']}")
+        concordant = next((r for r in rows if r.get("concordant") == "1"), None)
+        discordant = next((r for r in rows if r.get("concordant") == "0"), None)
 
-        print(f"  Confidence        : {case['llm_output']['confidence_level']}")
+        for label, row in (("CONCORDANT", concordant),
+                           ("NON-CONCORDANT", discordant)):
+            if not row:
+                continue
+            shown += 1
+            print(SUBDIV)
+            print(f"{pathway} - {label}")
+            print(f"  case_id    : {row['case_id']}  rep{row.get('replicate')}")
+            print(f"  reference  : {row.get(ref_col)}")
+            print(f"  model      : {row.get(model_col)}")
+            print(f"  confidence : {row.get('confidence_level')}")
+            print(f"  images     : {row.get('magnifications_sent')}")
+            if row.get("model_mpath_class"):
+                print(f"  MPATH-Dx v2.0 : model={row['model_mpath_class']} "
+                      f"expected={{{row.get('expected_mpath_classes')}}}"
+                      f"{' (ambiguous under v2.0)' if row.get('mpath_ambiguous') == '1' else ''}")
+            if row.get("consistency_flags"):
+                print(f"  flags      : {row['consistency_flags']}")
 
-        print(f"\n  ChromaDB query used:")
-        print(f"    \"{case['rag_query_used']}\"")
+            log_path = (pathlib.Path("analysis_logs") / pathway /
+                        f"{row['case_id']}__rep{row.get('replicate')}.json")
+            if log_path.exists():
+                log = json.loads(log_path.read_text())
+                print(f"  log        : {log_path}")
+                print(f"  model_id   : {log['request'].get('model')}")
+                print(f"  parse      : {log['parsing'].get('strategy_used')}")
+            print(SUBDIV)
 
-        print(f"\n  Retrieved literature snippet (top-1):")
-        print(wrap(case["retrieved_snippet"]))
-
-        feats = case["llm_output"].get("key_features",
-               case["llm_output"].get("cytological_features", []))
-        if feats:
-            print(f"\n  LLM-identified features:")
-            for f in feats:
-                print(wrap(f"• {f}", indent=6))
-
-        rationale_key = ("additional_observations" if "additional_observations" in case["llm_output"]
-                         else "grading_rationale")
-        rationale = case["llm_output"].get(rationale_key, "")
-        if rationale:
-            print(f"\n  LLM reasoning:")
-            print(wrap(rationale))
-
-        if not case.get("concordant") and "discordance_reason" in case:
-            print(f"\n  ⚠ Discordance explanation:")
-            print(wrap(case["discordance_reason"]))
-
-        print()
-
-
-# ── 5. HOW TO CAPTURE YOUR OWN LIVE EXAMPLES ────────────────────────────────
-
-HOW_TO = """
-  ── How to Capture Live Examples From Your Own Runs ──────────────────────
-
-  A. Log every analysis run to a JSON file
-  ─────────────────────────────────────────
-  In image_analyzer.py → analyze_image(), add after result is built:
-
-      import json, datetime, pathlib
-      log_dir = pathlib.Path("analysis_logs"); log_dir.mkdir(exist_ok=True)
-      entry = {
-          "timestamp":       datetime.datetime.utcnow().isoformat(),
-          "rag_queries":     list(self.rag_system.query_log),  # see step B
-          "retrieved_docs":  context_documents,                 # see step C
-          "llm_prompt":      prompt,
-          "llm_raw_output":  analysis_text,
-          "parsed_result":   result,
-      }
-      with open(log_dir / f"run_{entry['timestamp'][:19]}.json", "w") as f:
-          json.dump(entry, f, indent=2)
-
-  B. Expose the RAG query log
-  ───────────────────────────
-  In rag_system.py → __init__, add:  self.query_log = []
-  In query_documents(), prepend:     self.query_log.append(query)
-
-  C. Capture the raw retrieved documents (not just combined_text)
-  ───────────────────────────────────────────────────────────────
-  In image_analyzer.py → analyze_image(), before building prompt:
-
-      context_obj       = self.rag_system.get_grading_criteria_with_docs()
-      context           = context_obj["text"]
-      context_documents = context_obj["documents"]   # list of {content, metadata, distance}
-
-  Add get_grading_criteria_with_docs() to RAGSystem that returns both.
-
-  D. Label concordant / non-concordant
-  ─────────────────────────────────────
-  In the Streamlit UI (utils.py → display_results), add a radio widget:
-
-      feedback = st.radio("Pathologist grade (for concordance logging):",
-                          ["Well Differentiated","Moderately Differentiated",
-                           "Poorly Differentiated","Skip"], index=3)
-      if feedback != "Skip":
-          run_log["pathologist_grade"] = feedback
-          run_log["concordant"] = (feedback == result["primary_grade"])
-          # re-save the JSON entry
-
-  E. Retrieve and inspect your logs
-  ──────────────────────────────────
-  After running several cases:
-
-      import json, glob
-      logs = [json.load(open(f)) for f in glob.glob("analysis_logs/*.json")]
-      concordant     = [l for l in logs if l.get("concordant") is True]
-      non_concordant = [l for l in logs if l.get("concordant") is False]
-      print(f"Concordant: {len(concordant)}, Non-concordant: {len(non_concordant)}")
-
-  F. Quick CLI demo of live ChromaDB retrieval (no LLM key needed)
-  ─────────────────────────────────────────────────────────────────
-      python generate_examples.py           # prints this full report
-      python generate_examples.py --live    # also fires a real Claude API call
-                                            # (requires ANTHROPIC_API_KEY)
-"""
+    if not shown:
+        print("\n  No scored cases on disk yet.\n"
+              "  Run:  python run_tests.py  then  python join_and_score.py\n"
+              "  This section prints real cases only. It will stay empty\n"
+              "  rather than print an illustration, because the previous\n"
+              "  version's fabricated examples were indistinguishable from\n"
+              "  real output once pasted into a document.\n")
 
 
 def print_how_to():

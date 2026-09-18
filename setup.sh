@@ -26,14 +26,21 @@ else
 fi
 
 echo
-echo "==> Sanity check: vector stores present?"
+echo "==> Sanity check: source PDFs and vector stores"
+python build_vector_stores.py --check || true
+
 for d in chroma_db chroma_db_nevi; do
   if [ -d "$d" ]; then
-    echo "    $d OK ($(du -sh "$d" | cut -f1))"
+    echo "    $d present ($(du -sh "$d" | cut -f1))"
   else
-    echo "    $d MISSING - retrieval will not reproduce. See CLAUDE.md."
+    echo "    $d absent - build it with: python build_vector_stores.py"
   fi
 done
 
 echo
+echo "==> Offline tests (no API key needed)"
+python tests/test_smoke.py || true
+
+echo
 echo "Done. Run with:  streamlit run app.py"
+echo "Study design: docs/STUDY_DESIGN.md   Code map: CLAUDE.md"

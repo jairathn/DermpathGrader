@@ -1,22 +1,25 @@
-# Fallback dependency list. The authoritative source is pyproject.toml
-# plus uv.lock, both of which came across in the export.
+# Fallback dependency list. pyproject.toml plus uv.lock remain the
+# authoritative source for the pinned environment.
 #
-# Prefer:  uv sync
+# Prefer:   uv sync
 # Fallback: pip install -r requirements.txt
-#
-# Versions below are the ones the Replit environment reported. Anything
-# without a pin was not confirmed at export time and should be checked
-# against uv.lock.
 
 streamlit
-anthropic==0.52.2
-chromadb==1.0.12
-pillow==11.2.1
+anthropic>=1.6.0        # 1.x; structured outputs, streaming, adaptive thinking
+chromadb>=1.0.12
+pillow>=11.2.1
 pandas
 numpy
 
-# Installed in the Replit environment but NOT used by this app. The RAG
-# pipeline talks to ChromaDB directly and to Claude via the Anthropic
-# SDK, with no LangChain abstraction in between. Listed only so you
-# know why it appears in uv.lock. Safe to omit.
-# langchain==0.3.25
+# PDF loading and chunking for the vector stores. langchain_text_splitters
+# is the current home of RecursiveCharacterTextSplitter; the langchain
+# metapackage is not needed.
+langchain-community
+langchain-text-splitters
+pypdf
+
+# Optional: only extract_tiles.py needs it, for reading .svs whole-slide
+# images. Also requires the OpenSlide C library, which is a system
+# package (apt install libopenslide0 / brew install openslide).
+# If tiles are exported by ImageScope or QuPath instead, skip this.
+# openslide-python

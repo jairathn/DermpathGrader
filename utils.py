@@ -79,6 +79,15 @@ def display_results(result: Dict[str, Any]):
             if feature.strip():
                 st.write(f"• {feature}")
     
+    # Evidence by magnification (protocol v2.0)
+    evidence = result.get('magnification_evidence') or []
+    if evidence:
+        st.subheader("Evidence by magnification")
+        for item in evidence:
+            if isinstance(item, dict):
+                st.write(f"**{item.get('magnification', '?')}** - "
+                         f"{item.get('finding', '')}")
+
     # Additional observations
     additional_obs = result.get('additional_observations', '')
     if additional_obs and additional_obs.strip():

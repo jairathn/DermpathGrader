@@ -20,7 +20,7 @@ import sys
 from PIL import Image
 
 from grading_logger import CaseLogger, sha256_bytes, sha256_str
-from image_utils import compress_image_for_api, image_to_base64
+import image_utils
 
 
 # ── manifest session_id ───────────────────────────────────────────────────────
@@ -44,29 +44,18 @@ def _manifest_context_sha(pathway: str) -> str:
 # ── image preparation ─────────────────────────────────────────────────────────
 
 def prepare_image(path: pathlib.Path):
-    """Return (base64_str, media_type, meta_dict)."""
-    raw = path.read_bytes()
-    src_sha = sha256_bytes(raw)
+    """Return (base64_str, media_type, meta_dict) for a single image.
 
-    img = Image.open(io.BytesIO(raw))
-    src_dims = list(img.size)
-
-    processed, was_compressed = compress_image_for_api(img)
-    b64_str, media_type = image_to_base64(processed, was_compressed)
-
-    sent_bytes_raw = base64.b64decode(b64_str)
-    meta = {
-        "source_filename":      path.name,
-        "source_sha256":        src_sha,
-        "source_dimensions_px": src_dims,
-        "sent_media_type":      media_type,
-        "sent_dimensions_px":   list(processed.size),
-        "sent_bytes":           len(sent_bytes_raw),
-        "sent_sha256":          sha256_bytes(sent_bytes_raw),
-        "resize_applied":       was_compressed,
-        "compression_quality":  None,
-    }
-    return b64_str, media_type, meta
+    Delegates to image_utils so this reporting script cannot drift away
+    from the preprocessing the grading run actually used. `magnification`
+    is passed as "unspecified" because this helper handles one loose
+    image; a real protocol v2.0 case has four, and is prepared with
+    image_utils.prepare_case_images().
+    """
+    prepared = image_utils.prepare_image(path, "unspecified")
+    meta = prepared.to_log_dict()
+    meta.pop("magnification", None)
+    return prepared.b64, prepared.sent_media_type, meta
 
 
 # ── next free replicate ───────────────────────────────────────────────────────
