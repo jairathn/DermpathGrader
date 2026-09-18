@@ -9,6 +9,42 @@ below.
 
 GitHub Pages cannot host this, for reasons that are not worked around.
 
+## Serverless hosts will not work: Vercel, Netlify, GitHub Pages
+
+All three fail for the same underlying reason, so none of them is worth
+a second attempt.
+
+Streamlit is a **long-running server process**. It holds an open
+WebSocket per browser tab and keeps that session's state in memory in
+that process. Serverless platforms run short-lived, isolated function
+invocations: no persistent socket, no shared memory between requests, a
+hard execution ceiling, and a read-only filesystem apart from `/tmp` (so
+`analysis_logs/` would not survive either).
+
+Vercel fails at build time with:
+
+```
+Error: Found app.py but it does not export a top-level "app",
+"application", or "handler" variable.
+```
+
+That is Vercel's Python runtime trying to import `app.py` as an
+ASGI/WSGI serverless function. **Do not "fix" it by adding a `handler`
+variable.** The entrypoint error is the first problem, not the only one;
+satisfying it would produce a deploy that builds and then fails to serve,
+because Streamlit has no mountable ASGI app to expose and the runtime
+cannot hold the socket regardless.
+
+If you have already connected a Vercel or Netlify project to this repo,
+disconnect it — otherwise every push triggers a failing build and an
+email about it.
+
+A Vercel-native version is possible but is a rewrite, not a
+configuration change: a JavaScript front end plus Python serverless
+functions calling `claude_transport`, with the function duration raised
+(a grading call at `effort=high` over four images runs well past the
+default limits). Use one of the hosts below instead.
+
 ## GitHub Pages will not work
 
 GitHub Pages is a static file host. It serves HTML, CSS, JavaScript and
