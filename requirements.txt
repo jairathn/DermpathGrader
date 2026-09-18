@@ -1,32 +1,28 @@
-# Fallback dependency list. pyproject.toml plus uv.lock remain the
-# authoritative source for the pinned environment.
+# pip fallback. pyproject.toml plus uv.lock are authoritative and are
+# what Streamlit Community Cloud uses; keep this file in step with the
+# [project.dependencies] list there.
 #
-# Prefer:   uv sync
-# Fallback: pip install -r requirements.txt
+#   uv sync                          exact pins from uv.lock
+#   pip install -r requirements.txt  approximate
 
-streamlit
-anthropic>=1.6.0        # 1.x; structured outputs, streaming, adaptive thinking
+# 1.x is required, not preferred: structured outputs, adaptive thinking
+# and the streaming helper the analyzers use do not exist on 0.x.
+anthropic>=1.6.0
 chromadb>=1.0.12
+langchain-community>=0.3.24
+langchain-core>=0.3.0
+langchain-text-splitters>=0.3.0
+numpy>=1.26
 pillow>=11.2.1
-pandas
-numpy
+pypdf>=5.6.0
+streamlit>=1.45.1
 
-# PDF loading and chunking for the vector stores. langchain_text_splitters
-# is the current home of RecursiveCharacterTextSplitter; the langchain
-# metapackage is not needed.
-langchain-community
-langchain-core
-langchain-text-splitters
-pypdf
+# Managed hosts ship a SQLite older than the 3.35 chromadb requires and
+# it cannot be apt-installed there. sqlite_compat.py swaps this in at
+# import time; inert where the system SQLite is current.
+pysqlite3-binary>=0.5.0; sys_platform == "linux"
 
-# Managed hosts (Streamlit Community Cloud among them) ship a SQLite
-# older than the 3.35 chromadb requires, and it cannot be apt-installed
-# there. sqlite_compat.py swaps this in at import time. Harmless
-# locally: the shim only activates when the system SQLite is too old.
-pysqlite3-binary; sys_platform == "linux"
-
-# Optional: only extract_tiles.py needs it, for reading .svs whole-slide
-# images. Also requires the OpenSlide C library, which is a system
-# package (apt install libopenslide0 / brew install openslide).
-# If tiles are exported by ImageScope or QuPath instead, skip this.
-# openslide-python
+# extract_tiles.py only, for reading .svs whole-slide images. Also needs
+# the OpenSlide C library (apt install libopenslide0 / brew install
+# openslide). Skip if tiles come from ImageScope or QuPath.
+# openslide-python>=1.3.1

@@ -102,7 +102,16 @@ missing in one screen.
 Then **Settings → Sharing** and add your researchers' email addresses.
 Do this before sending anyone the link: apps are public by default.
 
-Three things were fixed in this repo so that deploy works:
+Four things were fixed in this repo so that deploy works:
+
+- **Dependency install.** Streamlit Cloud installs with `uv`. The
+  Replit-era `pyproject.toml` declared a package named `dermpathgrader`
+  that does not exist (this is a flat script repo), so `uv sync` failed
+  with `Could not find root package`. `[tool.uv] package = false` fixes
+  it. The old `uv.lock` also pinned `anthropic 0.52.2`, which would have
+  installed cleanly and then failed at the first grading call, since
+  structured outputs need 1.x; the lock is regenerated and now pins
+  1.7.0.
 
 - **SQLite.** Streamlit Cloud's image ships a SQLite older than the 3.35
   ChromaDB requires, and you cannot apt-get a newer one there.
