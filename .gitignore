@@ -25,3 +25,6 @@ Thumbs.db
 # They are reproducibility artifacts for the published retrieval
 # distances. See CLAUDE.md, landmine 2.
 _e2e/
+
+# browser test artifacts
+_browser_test/
