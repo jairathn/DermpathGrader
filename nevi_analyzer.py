@@ -2,18 +2,23 @@
 
 Changes from v1
 ---------------
-1. **Melanoma is a possible answer.** v1 could only emit mild / moderate /
-   severe dysplasia, so a melanoma in the input had nowhere to go and was
-   forced onto the top of the dysplasia ladder. The label space is now
-   four-way (mild, moderate, severe, melanoma), and melanoma carries its
-   own subtype and Breslow estimate rather than being "severe plus".
-
-2. **MPATH-Dx v2.0 replaces the old two-tier field.** v1 emitted
+1. **The MPATH-Dx v2.0 class is the primary output.** v1 emitted
    `mpath_grade` of "Low-Grade" / "High-Grade Dysplasia" and told the
    model low-grade meant mild and high-grade meant moderate-to-severe.
-   That is not MPATH-Dx v1.0 (which had five classes) and it is not
-   v2.0. The field is now `mpath_dx_v2_class`, one of 0/I/II/III/IV,
-   defined from the consensus statement in mpath_dx.py.
+   That is not MPATH-Dx v1.0 (which had five classes) and it is not v2.0.
+   `mpath_dx_v2_class` is now one of 0/I/II/III/IV, defined from the
+   consensus statement in mpath_dx.py, and it is what concordance is
+   scored on.
+
+2. **Melanoma is a possible answer, and is subtyped.** v1 could only emit
+   three dysplasia tiers, so a melanoma in the input had nowhere to go and
+   was forced onto the top of the dysplasia ladder. Melanoma is now a
+   lesion category carrying `melanoma_subtype` (in situ vs invasive),
+   `melanoma_histologic_subtype`, a Breslow estimate, ulceration and
+   mitotic rate. In situ versus invasive is what separates Class II from
+   Classes III and IV, so it is asked for explicitly rather than
+   inferred. The three-tier dysplasia grade survives as a secondary
+   descriptive field.
 
 3. **Four images instead of one**, each captioned with its magnification,
    plus a `magnification_evidence` field so the response records which
@@ -53,28 +58,36 @@ import mpath_dx
 NEVUS_OUTPUT_SCHEMA = {
     "type": "object",
     "properties": {
-        "lesion_category": {
-            "type": "string",
-            "enum": ["dysplastic_nevus", "melanoma",
-                     "benign_nevus_no_atypia", "nondiagnostic"],
-        },
-        "dysplasia_grade": {
-            "type": "string",
-            "enum": ["mild", "moderate", "severe", "not_applicable"],
-        },
-        "melanoma_subtype": {
-            "type": "string",
-            "enum": ["in_situ", "invasive", "not_applicable"],
-        },
-        "breslow_estimate_mm": {"type": ["number", "null"]},
-        "stratum_label": {
-            "type": "string",
-            "enum": ["mild", "moderate", "severe", "melanoma"],
-        },
+        # PRIMARY LABEL. The study strata are the v2.0 classes, so this
+        # is what concordance is scored on.
         "mpath_dx_v2_class": {
             "type": "string",
             "enum": list(mpath_dx.CLASSES),
         },
+        # What the lesion is. Needed because Class II holds both
+        # high-grade dysplasia and melanoma in situ.
+        "lesion_category": {
+            "type": "string",
+            "enum": ["benign_nevus_no_atypia", "dysplastic_nevus",
+                     "melanoma", "nondiagnostic"],
+        },
+        # Secondary descriptive field, cross-tabulated against class but
+        # no longer scored as a stratum.
+        "dysplasia_grade": {
+            "type": "string",
+            "enum": list(config.DYSPLASIA_GRADES),
+        },
+        "melanoma_subtype": {
+            "type": "string",
+            "enum": list(config.MELANOMA_SUBTYPES),
+        },
+        "melanoma_histologic_subtype": {
+            "type": "string",
+            "enum": list(config.MELANOMA_HISTOLOGIC_SUBTYPES),
+        },
+        "breslow_estimate_mm": {"type": ["number", "null"]},
+        "ulceration_present": {"type": ["boolean", "null"]},
+        "mitoses_per_mm2": {"type": ["number", "null"]},
         "confidence_level": {"type": "string",
                              "enum": ["High", "Medium", "Low"]},
         "architectural_features": {"type": "array", "items": {"type": "string"}},
@@ -96,10 +109,12 @@ NEVUS_OUTPUT_SCHEMA = {
         "clinical_significance": {"type": "string"},
     },
     "required": [
-        "lesion_category", "dysplasia_grade", "melanoma_subtype",
-        "breslow_estimate_mm", "stratum_label", "mpath_dx_v2_class",
-        "confidence_level", "architectural_features", "cytological_features",
-        "magnification_evidence", "grading_rationale", "clinical_significance",
+        "mpath_dx_v2_class", "lesion_category", "dysplasia_grade",
+        "melanoma_subtype", "melanoma_histologic_subtype",
+        "breslow_estimate_mm", "ulceration_present", "mitoses_per_mm2",
+        "confidence_level", "architectural_features",
+        "cytological_features", "magnification_evidence",
+        "grading_rationale", "clinical_significance",
     ],
     "additionalProperties": False,
 }
@@ -135,59 +150,73 @@ confirm cytology at high power. Do not grade from one image alone.
 Retrieved literature context:
 {context}
 
-### WHAT YOU ARE DECIDING
-
-First decide what the lesion IS, then grade it:
-
-- If it is a dysplastic (atypical) nevus, assign a dysplasia grade of mild,
-  moderate or severe.
-- If it is melanoma, say so. Do not report melanoma as "severe dysplasia".
-  Melanoma is a different diagnosis, not the top of the dysplasia scale.
-  State whether it is in situ or invasive, and for invasive melanoma give
-  your best Breslow thickness estimate in millimetres.
-- If it is a banal nevus with no meaningful atypia, use
-  benign_nevus_no_atypia and set the dysplasia grade to mild.
-- If the material will not support a diagnosis, use nondiagnostic.
-
-### DYSPLASIA GRADING CRITERIA (for dysplastic nevi)
-
-- Mild: nuclei about the size of resting basal keratinocyte nuclei, minimal
-  atypia, symmetric, orderly maturation with descent.
-- Moderate: nuclei about 1.5x basal keratinocyte nuclei, some pleomorphism
-  and chromatin clumping, well-developed nests, bridging may be present.
-- Severe: nuclei at or above 2x basal keratinocyte nuclei, three or more
-  nuclear abnormalities, or any high-risk architectural feature (confluent
-  junctional hyperplasia, pagetoid spread, epidermal mitoses).
-
-### FEATURES THAT SHOULD MAKE YOU CONSIDER MELANOMA RATHER THAN DYSPLASIA
-
-Asymmetry and poor circumscription at low power; confluent sheets of
-melanocytes; prominent pagetoid spread above the basal layer, especially at
-the periphery; absent maturation with descent; dermal mitoses; single-cell
-predominance over nests; necrosis; and ulceration. Weigh these at the
-magnification where they are actually assessable rather than assuming them.
-
-### {mpath_dx.SCHEMA_VERSION}
+### YOUR PRIMARY OUTPUT IS AN MPATH-Dx v2.0 CLASS
 
 {mpath_dx.prompt_block()}
 
-Assign the MPATH-Dx class from the criteria above, independently of the word
-you chose for the dysplasia grade. If you grade the lesion as moderate
-dysplasia, decide Class I versus Class II on nuclear size relative to resting
-basal keratinocytes and the other cytologic criteria.
+Assign exactly one class. Everything else you report should be consistent
+with it.
+
+### HOW TO GET THERE
+
+First decide what the lesion is, then place it:
+
+- Benign nevus with no meaningful atypia, or a dysplastic nevus with
+  low-grade atypia: Class I. Melanocyte nuclei are smaller than 1.5x
+  resting basal keratinocyte nuclei.
+- Dysplastic nevus with high-grade atypia: Class II. Nuclei from 1.5x up
+  to and beyond 2x resting basal keratinocyte nuclei.
+- Melanoma in situ, including lentigo maligna: also Class II. Class II
+  covers both high-grade dysplasia and in situ melanoma, so use
+  lesion_category and melanoma_subtype to say which one you mean. Do not
+  push an in situ melanoma to Class III to signal that it is melanoma.
+- Invasive melanoma under 0.8 mm Breslow: Class III.
+- Invasive melanoma 0.8 mm or greater: Class IV.
+- Material that will not support a diagnosis: Class 0.
+
+Report the three-tier dysplasia grade (mild / moderate / severe) as well,
+in dysplasia_grade, for any dysplastic nevus. It is descriptive here, not
+the label you are being scored on, so do not let it drive the class: v2.0
+deliberately removed the standalone moderate category, and a lesion you
+would call moderate can be either Class I or Class II depending on
+nuclear size and the rest of the cytologic criteria.
+
+### MELANOMA REPORTING
+
+When lesion_category is melanoma:
+
+- melanoma_subtype: in_situ or invasive. This is the distinction that
+  separates Class II from Classes III and IV, so make it explicitly.
+- melanoma_histologic_subtype: lentigo_maligna, superficial_spreading,
+  nodular, acral_lentiginous, desmoplastic, or other.
+- breslow_estimate_mm: for invasive melanoma, your best estimate in
+  millimetres from the granular layer to the deepest invasive cell. This
+  is what separates Class III from Class IV at 0.8 mm, so if the images
+  do not let you judge depth, say so in grading_rationale and give your
+  best estimate rather than leaving it null.
+- ulceration_present and mitoses_per_mm2 where assessable, otherwise null.
+
+### FEATURES FAVOURING MELANOMA OVER DYSPLASIA
+
+Asymmetry and poor circumscription at low power; confluent sheets of
+melanocytes; prominent pagetoid spread above the basal layer, especially
+peripherally; absent maturation with descent; dermal mitoses; single-cell
+predominance over nests; necrosis; ulceration. Weigh each at the
+magnification where it is actually assessable.
 
 ### RULES
 
-1. `stratum_label` is the single four-way study label: mild, moderate,
-   severe, or melanoma. For any melanoma, in situ or invasive, it is
-   "melanoma".
-2. `dysplasia_grade` is "not_applicable" when lesion_category is melanoma.
-3. `melanoma_subtype` is "not_applicable" when the lesion is not melanoma,
-   and `breslow_estimate_mm` is null unless the melanoma is invasive.
-4. In `magnification_evidence`, cite at least one finding per magnification,
-   naming only what that power can actually show.
-5. Grade what is in front of you. Do not hedge to the middle category to
-   avoid committing."""
+1. Exactly one mpath_dx_v2_class.
+2. dysplasia_grade is "not_applicable" when the lesion is melanoma or
+   nondiagnostic.
+3. melanoma_subtype and melanoma_histologic_subtype are "not_applicable"
+   when the lesion is not melanoma, and breslow_estimate_mm is null
+   unless the melanoma is invasive.
+4. In magnification_evidence, cite at least one finding per
+   magnification, naming only what that power can actually show.
+5. Grade what is in front of you. Do not hedge toward a middle class to
+   avoid committing.
+"""
 
     # ── call ─────────────────────────────────────────────────────────
 
@@ -299,40 +328,70 @@ basal keratinocytes and the other cytologic criteria.
 
     @staticmethod
     def _derive_consistency_flags(result: dict[str, Any]) -> dict[str, Any]:
-        """Cross-field checks recorded alongside the grade, not corrections.
+        """Cross-field checks recorded alongside the class, not corrections.
 
-        These do not alter the model's answer. They mark cases where the
-        answer is internally inconsistent so the analysis can report the
-        rate rather than silently normalising it away.
+        These never alter the model's answer. They mark outputs that
+        contradict themselves, so the analysis can report the rate
+        instead of silently normalising it away.
         """
         flags: list[str] = []
         category = result.get("lesion_category")
-        stratum = result.get("stratum_label")
         grade = result.get("dysplasia_grade")
         subtype = result.get("melanoma_subtype")
-        mclass = result.get("mpath_dx_v2_class")
+        histology = result.get("melanoma_histologic_subtype")
+        breslow = result.get("breslow_estimate_mm")
+        mclass = str(result.get("mpath_dx_v2_class") or "")
 
-        if category == "melanoma" and stratum != "melanoma":
-            flags.append("melanoma_category_but_nonmelanoma_stratum")
-        if category != "melanoma" and stratum == "melanoma":
-            flags.append("melanoma_stratum_but_nonmelanoma_category")
-        if category == "melanoma" and grade != "not_applicable":
+        is_melanoma = category == "melanoma"
+
+        if is_melanoma and grade != "not_applicable":
             flags.append("melanoma_with_dysplasia_grade")
-        if category == "dysplastic_nevus" and grade == "not_applicable":
+        if category == "dysplastic_nevus" and grade in (
+                None, "", "not_applicable"):
             flags.append("dysplastic_nevus_without_grade")
-        if subtype == "invasive" and result.get("breslow_estimate_mm") is None:
+        if not is_melanoma and subtype not in (None, "", "not_applicable"):
+            flags.append("melanoma_subtype_on_nonmelanoma")
+        if is_melanoma and subtype in (None, "", "not_applicable"):
+            flags.append("melanoma_without_subtype")
+        if is_melanoma and histology in (None, "", "not_applicable"):
+            flags.append("melanoma_without_histologic_subtype")
+        if subtype == "invasive" and breslow is None:
             flags.append("invasive_melanoma_without_breslow")
+        if subtype == "in_situ" and breslow is not None:
+            flags.append("in_situ_melanoma_with_breslow")
 
-        if mclass and stratum:
-            try:
-                expected = mpath_dx.expected_classes(
-                    stratum, subtype, result.get("breslow_estimate_mm"))
-                if mclass not in expected:
-                    flags.append(
-                        f"mpath_class_{mclass}_outside_expected_"
-                        f"{'_'.join(sorted(expected))}_for_{stratum}")
-            except ValueError:
-                flags.append("mpath_class_uncheckable")
+        # Does the class agree with the diagnosis the model itself gave?
+        if mclass and mpath_dx.is_valid_class(mclass):
+            normalised = mpath_dx._normalise(mclass)
+
+            if is_melanoma and subtype in ("in_situ", "invasive"):
+                try:
+                    implied = mpath_dx.class_for_melanoma(subtype, breslow)
+                    if implied != normalised:
+                        flags.append(
+                            f"class_{normalised}_contradicts_"
+                            f"{subtype}_melanoma_implying_{implied}")
+                except ValueError:
+                    # Invasive without Breslow: already flagged above, and
+                    # III vs IV genuinely cannot be checked.
+                    if normalised not in ("III", "IV"):
+                        flags.append(
+                            f"class_{normalised}_contradicts_"
+                            f"invasive_melanoma")
+
+            if not is_melanoma and mpath_dx.is_melanoma_class(normalised):
+                flags.append(
+                    f"class_{normalised}_is_invasive_melanoma_but_"
+                    f"category_is_{category}")
+
+            if category == "nondiagnostic" and normalised != "0":
+                flags.append("nondiagnostic_with_nonzero_class")
+            if normalised == "0" and category != "nondiagnostic":
+                flags.append("class_0_without_nondiagnostic_category")
+
+            if (category == "benign_nevus_no_atypia"
+                    and normalised not in ("I",)):
+                flags.append(f"benign_nevus_in_class_{normalised}")
 
         return {"consistency_flags": flags,
                 "internally_consistent": not flags}

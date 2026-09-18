@@ -29,8 +29,8 @@ Python 3.11. The only required secret is `ANTHROPIC_API_KEY`.
 | | v1 | v2.0 |
 |---|---|---|
 | Cases | ad hoc | 350: 50 per stratum |
-| Melanocytic labels | mild / moderate / severe | + **melanoma** |
-| Second melanocytic field | `mpath_grade`, two tiers | **MPATH-Dx v2.0 class** (0/I/II/III/IV) |
+| Melanocytic labels | mild / moderate / severe | **MPATH-Dx v2.0 Class I/II/III/IV** |
+| Melanoma | not representable | **first-class**, in situ vs invasive, subtyped, Breslow |
 | Images per case | 1 | **4** (whole slide, 4x, 10x, 40x) |
 | Reader input | JPEG | **.svs whole-slide** |
 | Model | `claude-opus-4-5-20251101` | **`claude-opus-5`** |
@@ -57,7 +57,7 @@ the grading code, and that is deliberate.
 | Collection | `scc_grading_literature` | `nevi_grading_literature` |
 | Chunks | 72 | 294 |
 | Subquery panel | 7 | 12 |
-| Strata | well / moderately / poorly | mild / moderate / severe / melanoma |
+| Strata | well / moderately / poorly | MPATH-Dx v2.0 Class I / II / III / IV |
 | Ground truth | `ground_truth_cscc.csv` | `ground_truth_nevus.csv` |
 | Logs | `analysis_logs/CSCC/` | `analysis_logs/Nevus/` |
 
@@ -74,19 +74,31 @@ Four classes: I low-grade atypia, II high-grade atypia (**including
 melanoma in situ**), III melanoma pT1a (<0.8 mm), IV melanoma ≥pT1b, plus
 0 nondiagnostic.
 
-**The thing to know before touching this.** v2.0 created its four classes
-by removing v1.0's standalone moderate-atypia class. Class I is
-"mild-to-moderate" and Class II is "high-end moderate-to-severe". So the
-moderate stratum has no single correct class, and
-`expected_classes("moderate")` returns `{I, II}` on purpose. The scorer
-counts either as concordant and reports those cases separately. Do not
-collapse it to one class in code; if the study needs one class per case,
-a dermatopathologist assigns it in the `mpath_dx_v2_reference` column.
+**The study samples these classes directly**: 50 each of I, II, III, IV.
+`expected_class()` returns one class and raises on anything that is not
+one, which is what catches a registry still carrying legacy
+mild/moderate/severe labels.
 
-Second consequence: melanoma in situ is Class II, the same class as
-high-grade dysplasia. On the MPATH-Dx arm, in situ melanoma is not
-separable from severe dysplasia. The four-way stratum arm and the
-melanoma-detection arm are what distinguish them.
+Those legacy labels are never auto-converted, because v2.0 built its four
+classes by deleting v1.0's standalone moderate-atypia category: Class I
+is "mild-to-moderate" and Class II is "high-end moderate-to-severe", so
+"moderate" spans both. `class_from_dysplasia_grade("moderate")` returns
+`{I, II}` and a dermatopathologist resolves it during case selection. The
+three-tier grade survives as a secondary descriptive field in
+`dysplasia_grade`, cross-tabulated against class but not scored.
+
+**Class II holds two different things.** High-grade dysplastic nevi and
+melanoma in situ are the same class by design. `lesion_category` and
+`melanoma_subtype` are what tell them apart, which is why melanoma
+detection is scored on `lesion_category` and not on the class.
+`build_case_registry.py` prints the Class II composition so the mix is a
+deliberate choice.
+
+**Melanoma reporting.** `melanoma_subtype` (in situ / invasive) is what
+moves a case between Class II and Classes III/IV, so it is asked for
+explicitly rather than inferred. Invasive cases also carry
+`melanoma_histologic_subtype`, `breslow_estimate_mm` (the 0.8 mm cutoff
+separating III from IV), `ulceration_present` and `mitoses_per_mm2`.
 
 ## How retrieval works
 
@@ -113,7 +125,7 @@ melanoma-detection arm are what distinguish them.
 - `grading_logger.py` — per-case structured logging
 - `make_manifest.py` — builds `run_manifest.json`
 - `run_tests.py` — batch runner, `--dry-run` supported
-- `join_and_score.py` — joins logs to ground truth (1 CSCC arm, 4 melanocytic)
+- `join_and_score.py` — joins logs to ground truth (1 CSCC arm, 4 melanocytic + Breslow)
 - `verify_logging.py` — audits manifest and logs, ~101 checks per log
 - `tests/test_smoke.py` — offline tests, no API key
 - `analyze_images.py`, `generate_examples.py` — report builders
@@ -161,13 +173,14 @@ melanoma-detection arm are what distinguish them.
    The CSCC "moderately differentiated" subquery returns an author
    affiliation block. Known, not a new bug.
 
-7. **New: field selection is the weak point of the model arm.** Readers
-   pan and zoom a whole slide freely; the model gets four fixed frames.
-   Whoever picks the 4x/10x/40x coordinates makes part of the diagnostic
-   decision first, and if they know the diagnosis the label leaks into
-   the input. `tile_selection_method` records `curated` or `auto` per
-   case. Do not mix methods within a stratum — that confounds selection
-   method with grade. See the header of `extract_tiles.py`.
+7. **Field selection.** `extract_tiles.py` defaults to `--source auto`,
+   a deterministic tissue-centroid rule with no human in the loop, so the
+   frames are reproducible from the slide and carry no knowledge of the
+   diagnosis. `--source curated` reads `data/tile_coords.csv` for cases
+   where the automatic frame is useless. Either way the method is
+   recorded per case in `tile_selection_method`. Readers pan and zoom the
+   whole slide while the model sees four fixed frames; that belongs in
+   the limitations paragraph, not in a redesign.
 
 ## Data and assets
 

@@ -17,21 +17,26 @@ CSCC (one arm)
   CSCC_3tier                 well / moderately / poorly, exact match.
 
 Melanocytic (four arms)
-  Nevus_stratum_4way         mild / moderate / severe / melanoma, exact.
-  Nevus_MPATH_v2_class       model class against the expected set for the
-                             reference stratum. Under v2.0 the moderate
-                             stratum expects {I, II} because the schema
-                             removed the standalone moderate class, so
-                             those cases are scored as concordant on
-                             either and are ALSO reported separately in
-                             the ambiguity breakdown. Read both numbers.
+  Nevus_MPATH_v2_class       Class I/II/III/IV, exact match. The primary
+                             arm: the strata are the classes, so every
+                             case has exactly one correct answer and
+                             there is no ambiguity to apportion.
   Nevus_management_binary    Class I versus Class II or above, i.e. the
-                             re-excision decision. This is the arm that
+                             re-excision decision. The arm that
                              corresponds to something happening to a
                              patient.
   Nevus_melanoma_detection   melanoma versus not, as sensitivity and
-                             specificity. New in v2.0, and the reason the
-                             melanoma stratum exists.
+                             specificity. Scored on lesion_category, NOT
+                             on class: Class II holds both high-grade
+                             dysplasia and melanoma in situ, so the class
+                             alone cannot establish melanoma.
+  Nevus_insitu_vs_invasive   among cases the reference calls melanoma,
+                             whether in situ and invasive are told apart.
+                             This is the distinction that moves a case
+                             between Class II and Classes III/IV, and it
+                             is where a fixed-field read is most likely
+                             to fail: depth of invasion is the hardest
+                             thing to judge from four frames.
 
 Nevus_internal_consistency is reported alongside these but is not a
 concordance arm: it measures whether the model's own fields agree with
@@ -163,7 +168,7 @@ def partition_by_protocol(logs: list[dict]) -> tuple[list[dict], list[dict]]:
 
 CSCC_LABELS = ["Well Differentiated", "Moderately Differentiated",
                "Poorly Differentiated"]
-NEVUS_LABELS = list(config.NEVUS_STRATA)
+NEVUS_LABELS = list(config.NEVUS_STRATA)   # I, II, III, IV
 
 _CSCC_ALIASES = {
     "well": "Well Differentiated",
@@ -179,21 +184,24 @@ _CSCC_ALIASES = {
     "poor": "Poorly Differentiated",
 }
 
-_NEVUS_ALIASES = {
-    "mild": "mild", "mild dysplasia": "mild",
-    "moderate": "moderate", "moderate dysplasia": "moderate",
-    "severe": "severe", "severe dysplasia": "severe",
-    "melanoma": "melanoma", "invasive melanoma": "melanoma",
-    "melanoma in situ": "melanoma", "in situ melanoma": "melanoma",
-}
+# Legacy three-tier labels are NOT aliased to a class here on purpose.
+# "moderate" spans Class I and Class II, so silently picking one would
+# fabricate a reference answer. A registry still carrying three-tier
+# labels fails loudly instead; convert it with
+# mpath_dx.class_from_dysplasia_grade() and have a dermatopathologist
+# resolve the ambiguous cases.
 
 
 def normalize_cscc(grade: str) -> str:
     return _CSCC_ALIASES.get(str(grade).strip().lower(), str(grade).strip())
 
 
-def normalize_nevus(grade: str) -> str:
-    return _NEVUS_ALIASES.get(str(grade).strip().lower(), str(grade).strip())
+def normalize_class(value: str) -> str:
+    """Normalise an MPATH-Dx class, or return "" if it is not one."""
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return mpath_dx._normalise(text) if mpath_dx.is_valid_class(text) else ""
 
 
 def _float_or_none(value) -> float | None:
@@ -251,77 +259,52 @@ def score_cscc(logs: list[dict], gt: dict[str, dict]) -> dict:
 def score_nevus(logs: list[dict], gt: dict[str, dict]) -> dict:
     rows, pairs = [], []
     matrix: dict[tuple[str, str], int] = defaultdict(int)
-    by_stratum: dict[str, list[int]] = defaultdict(list)
+    by_class: dict[str, list[int]] = defaultdict(list)
 
-    class_hits = class_total = 0
-    ambiguous_hits = ambiguous_total = 0
-    unambiguous_hits = unambiguous_total = 0
     mgmt_hits = mgmt_total = 0
     consistent = consistency_total = 0
     tp = fp = tn = fn = 0
+    subtype_hits = subtype_total = 0
+    breslow_pairs: list[tuple[float, float]] = []
+    bad_reference: list[str] = []
 
     for log in logs:
         case_id = log["case_id"]
         gt_row = gt.get(case_id, {})
         parsed = log.get("parsing", {}).get("parsed", {})
 
-        reference = normalize_nevus(gt_row.get("reference_stratum", ""))
-        model = normalize_nevus(parsed.get("stratum_label", ""))
-        if not reference or not model:
+        reference = normalize_class(gt_row.get("reference_class", ""))
+        model = normalize_class(parsed.get("mpath_dx_v2_class", ""))
+        if not reference:
+            # Either no ground truth for this case, or a legacy label.
+            if gt_row:
+                bad_reference.append(case_id)
+            continue
+        if not model:
             continue
 
-        ref_subtype = (gt_row.get("melanoma_subtype", "") or "").strip()
-        ref_breslow = _float_or_none(gt_row.get("breslow_mm", ""))
-
-        # Arm 1: four-way stratum
+        # Arm 1: exact class
         hit = int(reference == model)
         pairs.append((reference, model))
         matrix[(reference, model)] += 1
-        by_stratum[reference].append(hit)
+        by_class[reference].append(hit)
 
-        # Arm 2: MPATH-Dx v2.0 class
-        model_class = str(parsed.get("mpath_dx_v2_class", "") or "").strip()
-        expected: set[str] = set()
-        class_hit = None
-        ambiguous = False
-        # A per-case reference class assigned by the dermatopathologist
-        # always wins over the stratum-derived set.
-        explicit = (gt_row.get("mpath_dx_v2_reference", "") or "").strip()
-        if explicit and mpath_dx.is_valid_class(explicit):
-            expected = {mpath_dx._normalise(explicit)}
-        elif reference:
-            try:
-                expected = mpath_dx.expected_classes(
-                    reference, ref_subtype, ref_breslow)
-                ambiguous = mpath_dx.is_ambiguous(
-                    reference, ref_subtype, ref_breslow)
-            except ValueError:
-                expected = set()
+        # Arm 2: re-excision decision
+        mgmt_total += 1
+        mgmt_hits += int(mpath_dx.requires_reexcision(model)
+                         == mpath_dx.requires_reexcision(reference))
 
-        if expected and model_class and mpath_dx.is_valid_class(model_class):
-            normalised = mpath_dx._normalise(model_class)
-            class_hit = int(normalised in expected)
-            class_total += 1
-            class_hits += class_hit
-            if ambiguous:
-                ambiguous_total += 1
-                ambiguous_hits += class_hit
-            else:
-                unambiguous_total += 1
-                unambiguous_hits += class_hit
+        # Arm 3: melanoma detection, from lesion_category. Class II holds
+        # both high-grade dysplasia and melanoma in situ, so the class
+        # cannot carry this.
+        ref_category = (gt_row.get("lesion_category", "") or "").strip().lower()
+        ref_subtype = (gt_row.get("melanoma_subtype", "") or "").strip().lower()
+        ref_mel = (ref_category == "melanoma"
+                   or ref_subtype in ("in_situ", "invasive"))
+        model_category = (parsed.get("lesion_category", "") or "").strip()
+        model_subtype = (parsed.get("melanoma_subtype", "") or "").strip()
+        model_mel = model_category == "melanoma"
 
-            # Arm 3: re-excision decision
-            ref_mgmt = any(mpath_dx.requires_reexcision(c) for c in expected)
-            ref_mgmt_certain = len({
-                mpath_dx.requires_reexcision(c) for c in expected}) == 1
-            if ref_mgmt_certain:
-                model_mgmt = mpath_dx.requires_reexcision(normalised)
-                mgmt_total += 1
-                mgmt_hits += int(model_mgmt == ref_mgmt)
-
-        # Arm 4: melanoma detection
-        ref_mel = reference == "melanoma"
-        model_mel = model == "melanoma"
         if ref_mel and model_mel:
             tp += 1
         elif ref_mel and not model_mel:
@@ -331,29 +314,46 @@ def score_nevus(logs: list[dict], gt: dict[str, dict]) -> dict:
         else:
             tn += 1
 
-        flags = parsed.get("consistency_flags")
-        if flags is None:
-            flags = log.get("parsing", {}).get("parsed", {}).get(
-                "consistency_flags", [])
+        # Arm 4: in situ vs invasive, among reference melanomas
+        subtype_hit = None
+        if ref_mel and ref_subtype in ("in_situ", "invasive"):
+            subtype_total += 1
+            subtype_hit = int(model_subtype == ref_subtype)
+            subtype_hits += subtype_hit
+
+        ref_breslow = _float_or_none(gt_row.get("breslow_mm", ""))
+        model_breslow = _float_or_none(parsed.get("breslow_estimate_mm"))
+        if ref_breslow is not None and model_breslow is not None:
+            breslow_pairs.append((ref_breslow, model_breslow))
+
+        flags = parsed.get("consistency_flags") or []
         consistency_total += 1
         consistent += int(not flags)
 
         rows.append({
             "case_id": case_id,
             "replicate": log.get("replicate"),
-            "reference_stratum": reference,
-            "model_stratum": model,
+            "reference_class": reference,
+            "model_class": model,
             "concordant": hit,
+            "reference_lesion_category": ref_category,
+            "model_lesion_category": model_category,
             "reference_melanoma_subtype": ref_subtype,
+            "model_melanoma_subtype": model_subtype,
+            "subtype_concordant": "" if subtype_hit is None else subtype_hit,
+            "reference_histologic_subtype":
+                gt_row.get("melanoma_histologic_subtype", ""),
+            "model_histologic_subtype":
+                parsed.get("melanoma_histologic_subtype", ""),
             "reference_breslow_mm": gt_row.get("breslow_mm", ""),
-            "model_melanoma_subtype": parsed.get("melanoma_subtype", ""),
             "model_breslow_mm": parsed.get("breslow_estimate_mm", ""),
-            "expected_mpath_classes": "|".join(sorted(expected)),
-            "mpath_ambiguous": int(ambiguous),
-            "model_mpath_class": model_class,
-            "mpath_concordant": "" if class_hit is None else class_hit,
+            "reference_dysplasia_grade": gt_row.get("dysplasia_grade", ""),
+            "model_dysplasia_grade": parsed.get("dysplasia_grade", ""),
+            "reference_reexcision":
+                int(mpath_dx.requires_reexcision(reference)),
+            "model_reexcision": int(mpath_dx.requires_reexcision(model)),
             "confidence_level": parsed.get("confidence_level", ""),
-            "consistency_flags": "|".join(flags or []),
+            "consistency_flags": "|".join(flags),
             "magnifications_sent": "|".join(
                 log.get("image_set", {}).get("magnifications_sent", [])),
         })
@@ -363,20 +363,29 @@ def score_nevus(logs: list[dict], gt: dict[str, dict]) -> dict:
     sensitivity = tp / (tp + fn) if (tp + fn) else float("nan")
     specificity = tn / (tn + fp) if (tn + fp) else float("nan")
 
+    breslow_mae = float("nan")
+    breslow_pt1b_agree = float("nan")
+    if breslow_pairs:
+        breslow_mae = sum(abs(a - b) for a, b in breslow_pairs) / len(breslow_pairs)
+        cut = mpath_dx.BRESLOW_PT1B_CUTOFF_MM
+        breslow_pt1b_agree = sum(
+            1 for a, b in breslow_pairs if (a < cut) == (b < cut)
+        ) / len(breslow_pairs)
+
     return {
         "rows": rows, "matrix": matrix, "labels": NEVUS_LABELS,
         "n_total": n, "n_concordant": nc,
         "kappa": cohen_kappa(pairs, NEVUS_LABELS),
         "weighted_kappa": weighted_kappa(pairs, NEVUS_LABELS),
-        "by_stratum": {s: (sum(v), len(v)) for s, v in by_stratum.items()},
-        "class_hits": class_hits, "class_total": class_total,
-        "ambiguous_hits": ambiguous_hits, "ambiguous_total": ambiguous_total,
-        "unambiguous_hits": unambiguous_hits,
-        "unambiguous_total": unambiguous_total,
+        "by_class": {c: (sum(v), len(v)) for c, v in by_class.items()},
         "mgmt_hits": mgmt_hits, "mgmt_total": mgmt_total,
         "melanoma": {"tp": tp, "fp": fp, "tn": tn, "fn": fn,
                      "sensitivity": sensitivity, "specificity": specificity},
+        "subtype_hits": subtype_hits, "subtype_total": subtype_total,
+        "breslow_n": len(breslow_pairs), "breslow_mae": breslow_mae,
+        "breslow_pt1b_agreement": breslow_pt1b_agree,
         "consistent": consistent, "consistency_total": consistency_total,
+        "bad_reference": bad_reference,
     }
 
 
@@ -453,25 +462,16 @@ def main() -> None:
                         nevus["labels"], nevus["matrix"])
 
         arms.append(arm_row(
-            "Nevus_stratum_4way", nevus["n_concordant"], nevus["n_total"],
+            "Nevus_MPATH_v2_class", nevus["n_concordant"], nevus["n_total"],
             f"kappa={nevus['kappa']:.3f} "
             f"quadratic-weighted={nevus['weighted_kappa']:.3f}"))
-        for stratum, (hits, total) in sorted(nevus["by_stratum"].items()):
-            arms.append(arm_row(f"Nevus_stratum_4way::{stratum}", hits, total,
-                                "per-reference-stratum breakdown"))
+        for mpath_class, (hits, total) in sorted(
+                nevus["by_class"].items(), key=lambda kv: mpath_dx.class_rank(kv[0])):
+            label = mpath_dx.CLASS_DEFINITIONS[mpath_class]["label"]
+            arms.append(arm_row(
+                f"Nevus_MPATH_v2_class::Class_{mpath_class}", hits, total,
+                f"per-class breakdown ({label})"))
 
-        arms.append(arm_row(
-            "Nevus_MPATH_v2_class", nevus["class_hits"], nevus["class_total"],
-            "concordant if the model class is in the expected set"))
-        arms.append(arm_row(
-            "Nevus_MPATH_v2_class::unambiguous",
-            nevus["unambiguous_hits"], nevus["unambiguous_total"],
-            "strata with exactly one expected class"))
-        arms.append(arm_row(
-            "Nevus_MPATH_v2_class::ambiguous",
-            nevus["ambiguous_hits"], nevus["ambiguous_total"],
-            "moderate stratum: v2.0 expects {I, II}, so either is counted "
-            "concordant - report this separately"))
         arms.append(arm_row(
             "Nevus_management_binary", nevus["mgmt_hits"], nevus["mgmt_total"],
             "Class I vs Class II+ (re-excision decision)"))
@@ -485,7 +485,8 @@ def main() -> None:
             "concordance": round(mel["sensitivity"], 4)
             if mel["sensitivity"] == mel["sensitivity"] else "",
             "ci95_low": round(sens_low, 4), "ci95_high": round(sens_high, 4),
-            "note": f"fn={mel['fn']} (melanoma called non-melanoma)",
+            "note": f"fn={mel['fn']} melanoma called non-melanoma; scored on "
+                    f"lesion_category, not class",
         })
         arms.append({
             "arm": "Nevus_melanoma_detection::specificity",
@@ -493,12 +494,40 @@ def main() -> None:
             "concordance": round(mel["specificity"], 4)
             if mel["specificity"] == mel["specificity"] else "",
             "ci95_low": round(spec_low, 4), "ci95_high": round(spec_high, 4),
-            "note": f"fp={mel['fp']} (non-melanoma called melanoma)",
+            "note": f"fp={mel['fp']} non-melanoma called melanoma",
         })
+
+        arms.append(arm_row(
+            "Nevus_insitu_vs_invasive",
+            nevus["subtype_hits"], nevus["subtype_total"],
+            "among reference melanomas; this is what moves a case between "
+            "Class II and Classes III/IV"))
+
+        if nevus["breslow_n"]:
+            arms.append({
+                "arm": "Nevus_breslow::pT1b_cutoff_agreement",
+                "n_concordant": round(
+                    nevus["breslow_pt1b_agreement"] * nevus["breslow_n"]),
+                "n_total": nevus["breslow_n"],
+                "concordance": round(nevus["breslow_pt1b_agreement"], 4),
+                "ci95_low": "", "ci95_high": "",
+                "note": f"agreement on the 0.8 mm cutoff; "
+                        f"mean absolute error {nevus['breslow_mae']:.2f} mm",
+            })
+
         arms.append(arm_row(
             "Nevus_internal_consistency",
             nevus["consistent"], nevus["consistency_total"],
             "model output self-agreement, not concordance with truth"))
+
+        if nevus["bad_reference"]:
+            notes.append(
+                f"Nevus: {len(nevus['bad_reference'])} case(s) skipped - "
+                f"reference_class is missing or is not an MPATH-Dx v2.0 "
+                f"class. Legacy mild/moderate/severe labels are not "
+                f"auto-converted, because 'moderate' spans Class I and "
+                f"Class II and picking one would fabricate the reference. "
+                f"First few: {', '.join(nevus['bad_reference'][:5])}")
 
     write_csv(outdir / "concordance.csv", arms)
 

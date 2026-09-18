@@ -10,8 +10,12 @@ than left to be discovered during analysis.
 
 | Pathway | Strata | n |
 |---|---|---|
-| Melanocytic | mild dysplasia, moderate dysplasia, severe dysplasia, melanoma | 200 |
+| Melanocytic | MPATH-Dx v2.0 Class I, II, III, IV | 200 |
 | CSCC | well, moderately, poorly differentiated | 150 |
+
+The melanocytic strata are the MPATH-Dx v2.0 classes themselves. Four
+classes at 50 each is the same 200 cases the earlier three-tier-plus-
+melanoma design called for, so the collection burden is unchanged.
 
 ## Two arms, two input formats
 
@@ -29,24 +33,12 @@ them is not purely a difference in diagnostic ability.
 
 Three things follow.
 
-**1. Field selection is a hidden diagnostic step.** A reader decides
-where to look at 40x *after* seeing the whole slide, and can go back. The
-model cannot. Whoever chooses the 4x/10x/40x coordinates has therefore
-already made part of the diagnosis, and if that person knows the
-reference label, the label leaks into the model's input. `extract_tiles.py`
-supports two methods and records which was used per case:
-
-- `curated` — a person picks the fields. Record who, and whether they
-  were blinded, in `tiles_chosen_by` and `tiles_chooser_blinded`. If the
-  chooser was unblinded, the model arm's accuracy is an upper bound, not
-  an estimate.
-- `auto` — a deterministic tissue-centroid rule, no human. Nothing leaks.
-  The frame may miss the diagnostic area, which is a real result about
-  fixed-frame grading rather than a bug.
-
-Do not mix methods within a stratum; that confounds selection method with
-grade. The cleanest design is `auto` for everything, with `curated` as a
-pre-registered secondary analysis.
+**1. Field selection.** `extract_tiles.py` defaults to `--source auto`: a
+deterministic tissue-centroid rule, no human in the loop, reproducible
+from the slide. `--source curated` reads coordinates from
+`data/tile_coords.csv` where the automatic frame is useless. The method
+used is recorded per case in `tile_selection_method`. One line in the
+limitations paragraph covers it.
 
 **2. Four frames is a protocol constant, not a per-case choice.** A case
 graded on three images is not comparable to one graded on four, so a
@@ -92,46 +84,68 @@ Schema for Melanocytic Lesions: A Consensus Statement. *JAMA Netw Open.*
 | III | Invasive melanoma, Breslow <0.8 mm (pT1a) |
 | IV | Invasive melanoma, Breslow ≥0.8 mm (≥pT1b) |
 
-**There is a direct tension between this schema and a 50-case moderate
-stratum, and it should be stated in the manuscript rather than worked
-around.** v2.0 produced four classes precisely by deleting v1.0's
-standalone moderate-atypia class, because observers could not reproduce
-that split. Class I is defined as mild-to-moderate and Class II as
-high-end moderate-to-severe. A moderate case therefore has no single
-correct v2.0 class.
+**Sampling the classes directly removes the problem the three-tier design
+had.** v2.0 produced its four classes by deleting v1.0's standalone
+moderate-atypia category, because observers could not reproduce that
+split. Class I is defined as mild-to-moderate and Class II as high-end
+moderate-to-severe, so a case labelled "moderate dysplasia" had no single
+correct class. With classes as the strata, every case has exactly one
+correct answer, assigned by the reference dermatopathologist.
 
-The code handles this by scoring the moderate stratum against `{I, II}`
-and reporting those cases separately, so the headline MPATH-Dx number is
-never quietly inflated by a category that cannot be wrong. Two options if
-a single class per case is wanted:
+Legacy three-tier labels are not converted automatically anywhere in the
+pipeline. `mpath_dx.class_from_dysplasia_grade()` returns a set, and
+"moderate" returns `{I, II}`; those cases need a dermatopathologist to
+pick one before entering the study. The three-tier grade is still
+recorded per case in `dysplasia_grade`, so mild/moderate/severe can be
+cross-tabulated against class in the analysis.
 
-- Have the reference dermatopathologist assign a class per case into
-  `mpath_dx_v2_reference`. The scorer uses it when present. This is the
-  defensible route.
-- Drop the moderate stratum and sample Class I and Class II directly,
-  which aligns the design to the schema but abandons the three-tier
-  comparison.
+### The one thing to compose deliberately: Class II
 
-**Second tension: melanoma in situ is Class II**, alongside high-grade
-dysplasia. If the melanoma stratum contains in situ cases, they are not
-separable from severe dysplasia on the MPATH-Dx arm. Record
-`melanoma_subtype` for every melanoma case. If the intended claim is
-about melanoma detection, the melanoma-detection and four-way arms carry
-it; the MPATH-Dx arm does not.
+Class II contains **both** high-grade dysplastic nevi **and** melanoma in
+situ. They are the same class under v2.0, and the class label alone does
+not distinguish them. Three consequences:
+
+- Decide the Class II mix in advance and record it. A Class II stratum
+  that is 90% dysplasia measures something different from one that is
+  90% in situ melanoma. `build_case_registry.py` prints the composition.
+- Melanoma detection is scored on `lesion_category`, not on class,
+  because a Class II answer is not a melanoma answer.
+- `Nevus_insitu_vs_invasive` is a separate arm. In situ versus invasive
+  is what moves a case from Class II to Class III or IV, and depth of
+  invasion is the hardest thing to judge from four fixed frames, so it is
+  where the model arm is most likely to fail.
+
+### Melanoma reporting
+
+Every melanoma case carries:
+
+| Field | Purpose |
+|---|---|
+| `melanoma_subtype` | in situ or invasive - separates Class II from III/IV |
+| `melanoma_histologic_subtype` | lentigo maligna, superficial spreading, nodular, acral lentiginous, desmoplastic, other |
+| `breslow_estimate_mm` | separates Class III (<0.8 mm) from Class IV (≥0.8 mm) |
+| `ulceration_present`, `mitoses_per_mm2` | recorded where assessable |
+
+Breslow is scored two ways: agreement on the 0.8 mm cutoff (which is what
+changes the class) and mean absolute error in millimetres.
 
 ## Scoring arms
 
 CSCC: one arm, three-way exact match, with unweighted and quadratic-
 weighted kappa.
 
-Melanocytic: four.
+Melanocytic: four, plus a Breslow arm.
 
-1. `Nevus_stratum_4way` — exact four-way match.
-2. `Nevus_MPATH_v2_class` — model class within the expected set, reported
-   overall and split into unambiguous and ambiguous (moderate) strata.
-3. `Nevus_management_binary` — Class I versus Class II+, the re-excision
+1. `Nevus_MPATH_v2_class` — exact Class I/II/III/IV match. Primary.
+2. `Nevus_management_binary` — Class I versus Class II+, the re-excision
    decision. The arm that corresponds to something happening to a patient.
-4. `Nevus_melanoma_detection` — sensitivity and specificity for melanoma.
+3. `Nevus_melanoma_detection` — sensitivity and specificity for melanoma,
+   scored on `lesion_category` rather than class, because Class II holds
+   both high-grade dysplasia and melanoma in situ.
+4. `Nevus_insitu_vs_invasive` — among reference melanomas, whether in
+   situ and invasive are told apart.
+5. `Nevus_breslow::pT1b_cutoff_agreement` — agreement on the 0.8 mm
+   cutoff, with mean absolute error reported alongside.
 
 `Nevus_internal_consistency` is reported alongside but is not a
 concordance arm: it measures whether the model's own fields agree with
@@ -163,8 +177,7 @@ join_and_score.py                  # concordance
 
 ## Open decisions
 
-- Does the melanoma stratum contain in situ cases, invasive, or both?
-  The registry supports all three; the scoring consequences differ, per
-  above.
-- Is field selection `curated` or `auto` for the primary analysis?
+- The Class II mix: how many high-grade dysplastic nevi versus melanoma
+  in situ. This is the one composition choice the class label cannot
+  record for you.
 - How many readers, and does each read all 350 cases?

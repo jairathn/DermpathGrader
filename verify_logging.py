@@ -321,12 +321,14 @@ CSCC_PARSED_SCHEMA = {
 }
 
 NEVI_PARSED_SCHEMA = {
+    "mpath_dx_v2_class": str,
     "lesion_category": str,
     "dysplasia_grade": str,
     "melanoma_subtype": str,
+    "melanoma_histologic_subtype": str,
     "breslow_estimate_mm": (int, float, type(None)),
-    "stratum_label": str,
-    "mpath_dx_v2_class": str,
+    "ulceration_present": (bool, type(None)),
+    "mitoses_per_mm2": (int, float, type(None)),
     "confidence_level": str,
     "architectural_features": list,
     "cytological_features": list,

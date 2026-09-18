@@ -45,23 +45,54 @@ def test_study_design_totals():
     assert config.TARGET_N["Nevus"] == 200
     assert config.TARGET_N["CSCC"] == 150
     assert config.TARGET_N_TOTAL == 350
-    assert "melanoma" in config.NEVUS_STRATA
+    # The melanocytic strata are the MPATH-Dx v2.0 classes themselves.
+    assert config.NEVUS_STRATA == ("I", "II", "III", "IV")
 
 
-def test_mpath_v2_mapping():
-    assert mpath_dx.expected_classes("mild") == {"I"}
-    # v2.0 removed the standalone moderate class, so this is two classes
-    # by design, not an unfinished mapping.
-    assert mpath_dx.expected_classes("moderate") == {"I", "II"}
-    assert mpath_dx.is_ambiguous("moderate")
-    assert mpath_dx.expected_classes("severe") == {"II"}
-    # Melanoma in situ shares Class II with high-grade dysplasia.
-    assert mpath_dx.expected_classes("melanoma", "in_situ") == {"II"}
-    assert mpath_dx.expected_classes("melanoma", "invasive", 0.4) == {"III"}
-    assert mpath_dx.expected_classes("melanoma", "invasive", 0.8) == {"IV"}
+def test_mpath_v2_classes_are_the_strata():
+    for stratum in config.NEVUS_STRATA:
+        assert mpath_dx.expected_class(stratum) == stratum
+    assert mpath_dx.expected_class("Class III") == "III"
+    # A legacy three-tier label must fail loudly rather than be guessed at.
+    try:
+        mpath_dx.expected_class("moderate")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("legacy labels must not resolve to a class")
     assert not mpath_dx.requires_reexcision("I")
     assert mpath_dx.requires_reexcision("II")
     assert "e2250613" in mpath_dx.CITATION
+
+
+def test_melanoma_class_assignment():
+    # In situ melanoma is Class II, the same class as high-grade dysplasia.
+    assert mpath_dx.class_for_melanoma("in_situ") == "II"
+    assert mpath_dx.class_for_melanoma("invasive", 0.4) == "III"
+    assert mpath_dx.class_for_melanoma("invasive", 0.79) == "III"
+    assert mpath_dx.class_for_melanoma("invasive", 0.8) == "IV"
+    assert mpath_dx.class_for_melanoma("invasive", 3.0) == "IV"
+    # Invasive melanoma without a thickness cannot be placed.
+    try:
+        mpath_dx.class_for_melanoma("invasive")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("invasive melanoma needs a Breslow thickness")
+    # Class II is not an invasive-melanoma class, because it also holds
+    # high-grade dysplasia.
+    assert not mpath_dx.is_melanoma_class("II")
+    assert mpath_dx.is_melanoma_class("III")
+    assert mpath_dx.is_melanoma_class("IV")
+
+
+def test_legacy_three_tier_mapping_stays_honest():
+    assert mpath_dx.class_from_dysplasia_grade("mild") == {"I"}
+    # v2.0 deleted the standalone moderate class, so this spans two.
+    assert mpath_dx.class_from_dysplasia_grade("moderate") == {"I", "II"}
+    assert mpath_dx.is_ambiguous("moderate")
+    assert mpath_dx.class_from_dysplasia_grade("severe") == {"II"}
+    assert not mpath_dx.is_ambiguous("severe")
 
 
 def test_all_four_magnifications_required():
@@ -140,11 +171,17 @@ def test_analyzer_schemas_cover_the_study_labels():
     from nevi_analyzer import NEVUS_OUTPUT_SCHEMA
     from image_analyzer import CSCC_OUTPUT_SCHEMA
 
-    stratum = NEVUS_OUTPUT_SCHEMA["properties"]["stratum_label"]["enum"]
-    assert stratum == list(config.NEVUS_STRATA)
-    assert "melanoma" in stratum
-    classes = NEVUS_OUTPUT_SCHEMA["properties"]["mpath_dx_v2_class"]["enum"]
+    properties = NEVUS_OUTPUT_SCHEMA["properties"]
+    classes = properties["mpath_dx_v2_class"]["enum"]
     assert classes == list(mpath_dx.CLASSES)
+    # Every sampled stratum must be an emittable answer.
+    assert set(config.NEVUS_STRATA) <= set(classes)
+    assert properties["melanoma_subtype"]["enum"] == list(
+        config.MELANOMA_SUBTYPES)
+    assert "in_situ" in properties["melanoma_subtype"]["enum"]
+    assert "invasive" in properties["melanoma_subtype"]["enum"]
+    assert properties["melanoma_histologic_subtype"]["enum"] == list(
+        config.MELANOMA_HISTOLOGIC_SUBTYPES)
     grades = CSCC_OUTPUT_SCHEMA["properties"]["primary_grade"]["enum"]
     assert len(grades) == len(config.CSCC_STRATA)
 
@@ -153,39 +190,65 @@ def test_consistency_flags_catch_a_contradictory_answer():
     from nevi_analyzer import NeviAnalyzer
     flag = NeviAnalyzer._derive_consistency_flags
 
-    good = flag({"lesion_category": "melanoma", "stratum_label": "melanoma",
-                 "dysplasia_grade": "not_applicable",
-                 "melanoma_subtype": "invasive", "breslow_estimate_mm": 1.1,
-                 "mpath_dx_v2_class": "IV"})
-    assert good["internally_consistent"]
-
-    # Moderate + Class II is legitimate under v2.0 and must not be flagged.
-    moderate = flag({"lesion_category": "dysplastic_nevus",
-                     "stratum_label": "moderate",
-                     "dysplasia_grade": "moderate",
-                     "melanoma_subtype": "not_applicable",
-                     "breslow_estimate_mm": None,
-                     "mpath_dx_v2_class": "II"})
-    assert moderate["internally_consistent"]
-
-    bad = flag({"lesion_category": "melanoma", "stratum_label": "severe",
-                "dysplasia_grade": "severe",
+    def make(**overrides):
+        base = {"mpath_dx_v2_class": "I",
+                "lesion_category": "dysplastic_nevus",
+                "dysplasia_grade": "mild",
                 "melanoma_subtype": "not_applicable",
-                "breslow_estimate_mm": None, "mpath_dx_v2_class": "II"})
-    assert not bad["internally_consistent"]
+                "melanoma_histologic_subtype": "not_applicable",
+                "breslow_estimate_mm": None}
+        base.update(overrides)
+        return flag(base)
+
+    assert make()["internally_consistent"]
+
+    # Invasive melanoma at 1.1 mm is Class IV.
+    assert make(mpath_dx_v2_class="IV", lesion_category="melanoma",
+                dysplasia_grade="not_applicable",
+                melanoma_subtype="invasive",
+                melanoma_histologic_subtype="nodular",
+                breslow_estimate_mm=1.1)["internally_consistent"]
+
+    # Melanoma in situ is Class II; calling it Class III is a contradiction.
+    assert make(mpath_dx_v2_class="II", lesion_category="melanoma",
+                dysplasia_grade="not_applicable",
+                melanoma_subtype="in_situ",
+                melanoma_histologic_subtype="lentigo_maligna"
+                )["internally_consistent"]
+    assert not make(mpath_dx_v2_class="III", lesion_category="melanoma",
+                    dysplasia_grade="not_applicable",
+                    melanoma_subtype="in_situ",
+                    melanoma_histologic_subtype="lentigo_maligna"
+                    )["internally_consistent"]
+
+    # A thin melanoma placed in Class IV contradicts its own Breslow.
+    assert not make(mpath_dx_v2_class="IV", lesion_category="melanoma",
+                    dysplasia_grade="not_applicable",
+                    melanoma_subtype="invasive",
+                    melanoma_histologic_subtype="nodular",
+                    breslow_estimate_mm=0.4)["internally_consistent"]
+
+    # Moderate dysplasia is legitimately Class I or Class II under v2.0.
+    for cls in ("I", "II"):
+        assert make(mpath_dx_v2_class=cls,
+                    dysplasia_grade="moderate")["internally_consistent"]
+
+    # A nevus cannot sit in an invasive-melanoma class.
+    assert not make(mpath_dx_v2_class="III",
+                    dysplasia_grade="severe")["internally_consistent"]
 
 
 def test_scoring_statistics():
     import join_and_score as scoring
 
-    labels = list(config.NEVUS_STRATA)
+    labels = list(config.NEVUS_STRATA)   # I, II, III, IV
     perfect = [(x, x) for x in labels] * 5
     assert abs(scoring.cohen_kappa(perfect, labels) - 1.0) < 1e-9
     assert abs(scoring.weighted_kappa(perfect, labels) - 1.0) < 1e-9
     low, high = scoring.wilson(50, 50)
     assert high == 1.0 and low < 1.0
     # Quadratic weighting must give partial credit for an adjacent miss.
-    adjacent = [("severe", "moderate")] * 10 + [("mild", "mild")] * 10
+    adjacent = [("III", "II")] * 10 + [("I", "I")] * 10
     assert (scoring.weighted_kappa(adjacent, labels)
             > scoring.cohen_kappa(adjacent, labels))
 

@@ -7,8 +7,19 @@ abstraction over the grading code.
 Study design
 ------------
 350 cases, 50 per stratum:
-  Melanocytic (200): mild, moderate, severe dysplasia, melanoma
+  Melanocytic (200): MPATH-Dx v2.0 Class I, II, III, IV
   CSCC        (150): well, moderately, poorly differentiated
+
+The melanocytic strata are the MPATH-Dx v2.0 classes themselves, not the
+three-tier dysplasia scale. That resolves the problem the three-tier
+design had: v2.0 built its four classes by deleting v1.0's standalone
+moderate-atypia category, so a "moderate" case had no single correct
+class. Sampling the classes directly removes the ambiguity, and the
+arithmetic is unchanged - 4 classes x 50 is the same 200 cases.
+
+The three-tier dysplasia grade is still captured, as a secondary
+descriptive field, so mild/moderate/severe can be cross-tabulated
+against class. It is no longer what the study is scored on.
 
 Human readers grade whole-slide `.svs`. The model arm grades four JPEG
 derivatives per case (whole slide, 4x, 10x, 40x), because the vision API
@@ -46,7 +57,29 @@ TEMPERATURE = None
 # ── Strata ───────────────────────────────────────────────────────────
 N_PER_STRATUM = 50
 
-NEVUS_STRATA = ("mild", "moderate", "severe", "melanoma")
+# MPATH-Dx v2.0 classes. Class 0 (nondiagnostic) is a valid model output
+# but is not sampled: a stratum of deliberately ungradeable slides would
+# measure scan quality, not grading.
+NEVUS_STRATA = ("I", "II", "III", "IV")
+
+# Secondary descriptive fields, captured but not scored as strata.
+DYSPLASIA_GRADES = ("mild", "moderate", "severe", "not_applicable")
+
+MELANOMA_SUBTYPES = ("in_situ", "invasive", "not_applicable")
+
+# Histologic subtype, recorded for melanoma cases. Class III and IV split
+# on Breslow thickness, not on this, but it is worth capturing: the model
+# is asked to name it, and desmoplastic and acral cases are exactly where
+# a fixed-field read is expected to struggle.
+MELANOMA_HISTOLOGIC_SUBTYPES = (
+    "lentigo_maligna",
+    "superficial_spreading",
+    "nodular",
+    "acral_lentiginous",
+    "desmoplastic",
+    "other",
+    "not_applicable",
+)
 CSCC_STRATA = ("well", "moderately", "poorly")
 
 PATHWAYS = ("CSCC", "Nevus")

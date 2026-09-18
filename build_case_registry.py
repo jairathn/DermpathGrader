@@ -38,11 +38,14 @@ import config
 
 
 REGISTRY_FIELDS = [
+    # reference_stratum is the MPATH-Dx v2.0 class (I/II/III/IV) on the
+    # melanocytic side and the differentiation grade on the CSCC side.
     "case_id", "pathway", "reference_stratum",
-    "melanoma_subtype", "breslow_mm", "mpath_dx_v2_reference",
+    "lesion_category", "dysplasia_grade",
+    "melanoma_subtype", "melanoma_histologic_subtype", "breslow_mm",
     "svs_path", "svs_sha256",
     "tile_whole_slide", "tile_4x", "tile_10x", "tile_40x",
-    "tile_selection_method", "tiles_chosen_by", "tiles_chooser_blinded",
+    "tile_selection_method",
     "image_source_registry", "native_objective_power", "notes",
 ]
 
@@ -100,7 +103,7 @@ def scan(slide_dir: pathlib.Path, out: pathlib.Path,
             "reference_stratum": stratum,
             "svs_path": str(svs),
             "svs_sha256": sha256_file(svs) if hash_slides else "",
-            "tile_selection_method": "curated",
+            "tile_selection_method": "auto",
         })
         for mag in config.MAGNIFICATIONS:
             candidate = tile_dir / f"{case_id}__{mag}.jpg"
@@ -140,11 +143,21 @@ def report(rows: list[dict]) -> None:
               f"run extract_tiles.py. First few: "
               f"{', '.join(incomplete[:5])}")
 
-    methods = Counter(r["tile_selection_method"] for r in rows if r["pathway"])
-    if len(methods) > 1:
-        print(f"\n! Mixed tile_selection_method across cases: {dict(methods)}. "
-              f"That confounds field-selection method with stratum. Use one "
-              f"method for the whole study.")
+    # Class II holds both high-grade dysplasia and melanoma in situ, and
+    # the class label alone does not say which. Surface the mix so it is a
+    # deliberate choice rather than an accident of whatever was on the shelf.
+    class_two = [r for r in rows
+                 if r.get("pathway") == "Nevus"
+                 and r.get("reference_stratum") == "II"]
+    if class_two:
+        mix = Counter(r.get("lesion_category", "") or "unspecified"
+                      for r in class_two)
+        print(f"\nClass II composition ({len(class_two)} cases):")
+        for category, count in sorted(mix.items()):
+            print(f"  {category:24} {count:4}")
+        print("  Class II covers high-grade dysplasia AND melanoma in situ. "
+              "The class\n  label cannot distinguish them; melanoma_subtype "
+              "is what does.")
 
 
 def reader_manifest(registry: pathlib.Path, out: pathlib.Path,

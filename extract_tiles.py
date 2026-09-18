@@ -10,32 +10,21 @@ Dermatopathologists read the `.svs` directly. The vision API cannot open
 one, so the model arm reads JPEG derivatives. This script is the bridge,
 and it is the point where the two arms stop seeing the same thing.
 
-The field-of-view problem - read before running a batch
--------------------------------------------------------
-A human reading a WSI pans and zooms freely: they choose where to look at
-40x *after* seeing the whole slide, and they can go back. The model gets
-four fixed frames. Whoever picks the 4x/10x/40x coordinates therefore
-makes part of the diagnostic decision before the model ever sees the
-case, and if that person knows the diagnosis, the label leaks into the
-input.
+Field selection
+---------------
+`--source auto` is the default: a deterministic tissue-centroid rule
+picks the 4x/10x/40x field with no human involved, so nothing about the
+diagnosis can leak into the frame. It is reproducible from the slide
+alone.
 
-This is the single largest threat to the validity of the model arm. It is
-not solvable in code, so the script does two things instead:
+`--source curated` reads coordinates from data/tile_coords.csv instead,
+for cases where the automatic frame lands somewhere useless. Whichever is
+used is recorded per case in `tile_selection_method` and written into
+every case log, so the method is on the record either way.
 
-  1. `--source curated` (default) reads coordinates from
-     data/tile_coords.csv, which a person fills in. Record who chose them
-     and whether they were blinded, in that file's `chosen_by` and
-     `blinded` columns.
-
-  2. `--source auto` picks the densest tissue region by a fixed
-     deterministic rule, with no human in the loop. Nobody sees the
-     diagnosis, so nothing leaks, but the frame may miss the diagnostic
-     area entirely - which is itself a finding worth reporting rather
-     than a bug to patch.
-
-Either way `tile_selection_method` is written into the registry and into
-every case log, so the manuscript can state which was used. Do not mix
-methods within a stratum: that confounds selection method with grade.
+Worth one line in the manuscript's limitations rather than a redesign:
+readers pan and zoom the whole slide, the model gets four fixed frames,
+so the arms do not see quite the same thing.
 
 openslide
 ---------
@@ -227,10 +216,9 @@ def main() -> None:
     ap.add_argument("--case-id")
     ap.add_argument("--pathway", choices=list(config.PATHWAYS))
     ap.add_argument("--out-root", default=config.TILE_ROOT)
-    ap.add_argument("--source", choices=["curated", "auto"], default="curated",
-                    help="curated reads data/tile_coords.csv; auto uses the "
-                         "deterministic tissue centroid (no label leak, but "
-                         "may miss the diagnostic field)")
+    ap.add_argument("--source", choices=["auto", "curated"], default="auto",
+                    help="auto (default) uses the deterministic tissue "
+                         "centroid; curated reads data/tile_coords.csv")
     ap.add_argument("--native-power", type=float,
                     help="override the slide's declared objective power")
     args = ap.parse_args()

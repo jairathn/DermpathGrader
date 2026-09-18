@@ -4,11 +4,12 @@ Grades dermatopathology images along two independent pathways, each
 backed by its own literature retrieval store and a Claude vision call:
 
 - **CSCC** — well / moderately / poorly differentiated
-- **Melanocytic** — mild / moderate / severe dysplasia, and **melanoma**,
-  plus an MPATH-Dx v2.0 class
+- **Melanocytic** — MPATH-Dx v2.0 Class I / II / III / IV, with melanoma
+  distinguished as in situ or invasive and subtyped
 
-Protocol v2.0: 350 cases (50 per stratum), four magnifications per case
-(whole slide, 4x, 10x, 40x), `claude-opus-5`.
+Protocol v2.0: 350 cases (50 per stratum — 4 melanocytic classes, 3 CSCC
+grades), four magnifications per case (whole slide, 4x, 10x, 40x),
+`claude-opus-5`.
 
 Dermatopathologist readers grade whole-slide `.svs`; the model grades
 JPEG derivatives, because the vision API cannot read `.svs`.
@@ -42,6 +43,8 @@ python join_and_score.py
   changing anything that feeds a manuscript
 - `docs/STUDY_DESIGN.md` — the study, the two-arm asymmetry, the MPATH-Dx
   v2.0 tension with the moderate stratum, and the scoring arms
+- `docs/DEPLOYMENT.md` — hosting options, and why GitHub Pages cannot run
+  this
 - `MIGRATION.md` — how the code came off Replit and what was lost
 
 ## Status

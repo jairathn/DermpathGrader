@@ -1,0 +1,11 @@
+[server]
+headless = true
+# Slide tiles are large; the default 200 MB cap is more than enough but
+# the app rejects .svs before this is reached anyway.
+maxUploadSize = 200
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"

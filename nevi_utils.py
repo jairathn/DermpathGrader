@@ -60,43 +60,52 @@ def display_magnification_evidence(result: Dict[str, Any]):
 
 
 def display_nevi_results(result: Dict[str, Any]):
-    """Render a melanocytic grading result."""
+    """Render a melanocytic grading result.
+
+    The MPATH-Dx v2.0 class is the headline because it is the study's
+    primary label. The lesion category sits directly under it, because
+    Class II covers both high-grade dysplasia and melanoma in situ and
+    the class alone does not say which.
+    """
     import mpath_dx
 
+    mclass = str(result.get("mpath_dx_v2_class", "") or "")
     category = result.get("lesion_category", "unknown")
-    stratum = result.get("stratum_label", "unknown")
     grade = result.get("dysplasia_grade", "not_applicable")
     subtype = result.get("melanoma_subtype", "not_applicable")
+    histology = result.get("melanoma_histologic_subtype", "not_applicable")
     breslow = result.get("breslow_estimate_mm")
-    mclass = str(result.get("mpath_dx_v2_class", "") or "")
     confidence = result.get("confidence_level", "Low")
-
-    is_melanoma = category == "melanoma" or stratum == "melanoma"
-    if is_melanoma:
-        headline = "Melanoma"
-        if subtype == "in_situ":
-            headline += " (in situ)"
-        elif subtype == "invasive":
-            headline += " (invasive"
-            headline += f", Breslow ~{breslow} mm)" if breslow else ")"
-        headline_color = "#dc3545"
-    else:
-        headline = f"{str(grade).capitalize()} dysplasia"
-        headline_color = get_traditional_grade_color(
-            f"{str(grade).capitalize()} Dysplasia")
 
     class_label = ""
     if mclass in mpath_dx.CLASS_DEFINITIONS:
         class_label = mpath_dx.CLASS_DEFINITIONS[mclass]["label"]
 
+    if category == "melanoma":
+        subline = "Melanoma"
+        if subtype == "in_situ":
+            subline += " in situ"
+        elif subtype == "invasive":
+            subline += " (invasive"
+            subline += f", Breslow ~{breslow} mm)" if breslow else ")"
+        if histology and histology != "not_applicable":
+            subline += f" - {histology.replace('_', ' ')}"
+    elif category == "dysplastic_nevus":
+        subline = f"Dysplastic nevus, {str(grade).replace('_', ' ')} atypia"
+    elif category == "benign_nevus_no_atypia":
+        subline = "Benign nevus, no significant atypia"
+    else:
+        subline = str(category).replace("_", " ").capitalize()
+
+    colour = get_mpath_class_color(mclass)
     st.markdown(
         f"""
         <div style='padding: 20px; border-radius: 10px;
-                    border: 2px solid {headline_color}; margin-bottom: 20px;'>
-            <h2 style='color: {headline_color}; margin-top: 0;'>{headline}</h2>
-            <h3 style='color: {get_mpath_class_color(mclass)}; margin: 10px 0;'>
+                    border: 2px solid {colour}; margin-bottom: 20px;'>
+            <h2 style='color: {colour}; margin-top: 0;'>
                 MPATH-Dx v2.0 Class {mclass} - {class_label}
-            </h3>
+            </h2>
+            <h3 style='color: #444; margin: 10px 0;'>{subline}</h3>
             <p style='color: {get_confidence_color(confidence)};
                       font-size: 18px; margin-bottom: 0;'>
                 <strong>Confidence: {confidence}</strong>
@@ -111,12 +120,27 @@ def display_nevi_results(result: Dict[str, Any]):
             st.warning("Class II or above: re-excision indicated.")
         else:
             st.info("Class I: re-excision not indicated on this basis.")
+        if mclass == "II":
+            st.caption(
+                "Class II covers high-grade dysplastic nevi and melanoma in "
+                "situ alike. The lesion category above is what distinguishes "
+                "them.")
+
+    if category == "melanoma" and subtype == "invasive":
+        details = []
+        if result.get("ulceration_present") is not None:
+            details.append("ulcerated" if result["ulceration_present"]
+                           else "not ulcerated")
+        if result.get("mitoses_per_mm2") is not None:
+            details.append(f"{result['mitoses_per_mm2']} mitoses/mm2")
+        if details:
+            st.caption("Staging features: " + ", ".join(details))
 
     flags = result.get("consistency_flags") or []
     if flags:
         st.error(
-            "This output is internally inconsistent, which usually means the "
-            "grade should not be taken at face value:\n"
+            "This output contradicts itself, so the class should not be "
+            "taken at face value:\n"
             + "\n".join(f"- {flag}" for flag in flags))
 
     col1, col2 = st.columns(2)
@@ -158,8 +182,8 @@ def display_nevi_results(result: Dict[str, Any]):
             "classes and removed the standalone moderate-atypia category. "
             "Class I is low-grade (mild-to-moderate) atypia; Class II is "
             "high-grade (high-end moderate-to-severe) atypia and includes "
-            "melanoma in situ; Class III is invasive melanoma under 0.8 mm; "
-            "Class IV is 0.8 mm or greater.")
+            "melanoma in situ; Class III is invasive melanoma under "
+            "0.8 mm; Class IV is 0.8 mm or greater.")
         for cls in mpath_dx.CLASSES:
             definition = mpath_dx.CLASS_DEFINITIONS[cls]
             st.write(f"**Class {cls} - {definition['label']}**: "

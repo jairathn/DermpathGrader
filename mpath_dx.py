@@ -21,29 +21,35 @@ low-grade corresponded to mild and high-grade to moderate-to-severe.
 That binary is gone. This module replaces it with the actual v2.0
 four-class schema.
 
-Read this before changing anything here
+The study samples these classes directly
 ---------------------------------------
-Version 2.0 collapsed v1.0's five classes into four, specifically by
-removing the standalone moderate-atypia class. Class I is low-grade
-(mild-to-moderate) atypia; Class II is high-grade (high-end
-moderate-to-severe) atypia.
+As of 2026-09-18 the melanocytic strata ARE the v2.0 classes: 50 each of
+Class I, II, III and IV. That resolves the problem the earlier three-tier
+design had.
 
-That has a direct consequence for this study. The melanocytic arm
-samples 50 mild, 50 moderate, 50 severe and 50 melanoma, but a
-"moderate" case has no single correct v2.0 class: low-end moderate is
-Class I, high-end moderate is Class II. The schema is built that way on
-purpose, to stop forcing a split observers could not reproduce.
+v2.0 produced its four classes by removing v1.0's standalone
+moderate-atypia category - Class I is "mild-to-moderate" atypia and Class
+II is "high-end moderate-to-severe". A case labelled "moderate dysplasia"
+therefore had no single correct class, and scoring it meant either
+accepting both answers or inventing a split the consensus panel had
+deliberately abandoned. Sampling the classes directly removes that
+entirely: every case has exactly one correct class, assigned by the
+reference dermatopathologist.
 
-So this module does not pretend there is a 1:1 map. `expected_classes()`
-returns a set, and the moderate stratum legitimately returns {I, II}.
-The scorer counts a model answer as concordant if it lands in the
-expected set, and `is_ambiguous()` flags those cases so they are
-reported separately rather than quietly inflating agreement.
+`expected_class()` is now the scoring entry point and returns one class.
+`class_from_dysplasia_grade()` remains for the secondary three-tier
+field and for converting legacy labels during case selection; it still
+returns a set, and still returns {I, II} for "moderate", because that
+ambiguity is a real property of the schema and not something to paper
+over when mapping old labels in.
 
-Do not "fix" this by collapsing moderate to one class. If the study needs
-one class per case, it has to come from the reference dermatopathologist
-assigning it per case into the ground truth's `mpath_dx_v2_reference`
-column, not from a lookup table in code.
+One thing to keep in view when composing Class II
+--------------------------------------------------
+Class II contains both high-grade dysplastic nevi and melanoma in situ.
+They are the same class by design. The `melanoma_subtype` field is what
+separates them, so a Class II stratum that is entirely melanoma in situ
+(or entirely dysplasia) will not be detectable from the class label
+alone. Compose it deliberately and record the mix.
 """
 
 from __future__ import annotations
@@ -132,34 +138,53 @@ def is_valid_class(mpath_class: str) -> bool:
     return _normalise(mpath_class) in _ORDER
 
 
-def expected_classes(stratum: str,
-                     melanoma_subtype: str | None = None,
-                     breslow_mm: float | None = None) -> set[str]:
-    """MPATH-Dx v2.0 class(es) a case of this stratum should receive.
+def expected_class(stratum: str) -> str:
+    """The single correct class for a case in this stratum.
 
-    Returns a set, because v2.0 does not resolve every case to one class
-    from the stratum label alone. See the module docstring.
-
-    `melanoma_subtype` is "in_situ" or "invasive"; `breslow_mm` is only
-    consulted for invasive melanoma, where 0.8 mm splits III from IV.
+    The melanocytic strata are the v2.0 classes, so this is a validation
+    and normalisation step rather than a mapping. It raises on anything
+    that is not a class, which is what catches a registry still carrying
+    legacy mild/moderate/severe labels.
     """
-    s = str(stratum).strip().lower()
+    key = _normalise(stratum)
+    if key not in _ORDER:
+        raise ValueError(
+            f"{stratum!r} is not an MPATH-Dx v2.0 class. The melanocytic "
+            f"strata are {', '.join(CLASSES)}. If this is a legacy "
+            f"three-tier label, convert it with "
+            f"class_from_dysplasia_grade() and have a dermatopathologist "
+            f"resolve any case that maps to more than one class."
+        )
+    return key
+
+
+def class_from_dysplasia_grade(
+        grade: str,
+        melanoma_subtype: str | None = None,
+        breslow_mm: float | None = None) -> set[str]:
+    """Map a legacy three-tier label to the v2.0 class(es) it could be.
+
+    Used when importing cases labelled on the old scale, and for the
+    secondary descriptive dysplasia field. Returns a SET because the
+    mapping is genuinely not one-to-one: "moderate" spans Class I and
+    Class II under v2.0. A case that lands here with two classes needs a
+    dermatopathologist to pick one before it can enter the study.
+    """
+    s = str(grade).strip().lower()
 
     if s == "mild":
         return {"I"}
     if s == "moderate":
-        # Genuinely ambiguous under v2.0. Not a bug.
+        # Genuinely ambiguous under v2.0. Not a bug, and not resolvable
+        # from the word alone.
         return {"I", "II"}
     if s == "severe":
         return {"II"}
     if s == "melanoma":
         subtype = (melanoma_subtype or "").strip().lower()
         if subtype == "in_situ":
-            # Melanoma in situ is Class II under v2.0, the same class as
-            # high-grade dysplasia. This is the single most consequential
-            # difference from v1.0 for the melanoma stratum: if the
-            # stratum contains in situ cases, "melanoma" and "severe"
-            # are not separable on class alone.
+            # Melanoma in situ is Class II, alongside high-grade
+            # dysplasia. The subtype field is what tells them apart.
             return {"II"}
         if subtype == "invasive":
             if breslow_mm is None:
@@ -168,13 +193,49 @@ def expected_classes(stratum: str,
                     else {"IV"})
         return {"II", "III", "IV"}
 
-    raise ValueError(f"unknown melanocytic stratum: {stratum!r}")
+    raise ValueError(f"unknown dysplasia grade: {grade!r}")
 
 
-def is_ambiguous(stratum: str, melanoma_subtype: str | None = None,
+def class_for_melanoma(melanoma_subtype: str,
+                       breslow_mm: float | None = None) -> str:
+    """Class for a melanoma, given its subtype and thickness.
+
+    in situ -> II; invasive <0.8 mm -> III; invasive >=0.8 mm -> IV.
+    Raises when invasive melanoma arrives without a thickness, because
+    III and IV cannot be separated without one.
+    """
+    subtype = str(melanoma_subtype).strip().lower()
+    if subtype == "in_situ":
+        return "II"
+    if subtype == "invasive":
+        if breslow_mm is None:
+            raise ValueError(
+                "invasive melanoma needs a Breslow thickness to separate "
+                "Class III (<0.8 mm) from Class IV (>=0.8 mm)")
+        return ("III" if float(breslow_mm) < BRESLOW_PT1B_CUTOFF_MM
+                else "IV")
+    raise ValueError(f"unknown melanoma subtype: {melanoma_subtype!r}")
+
+
+def is_melanoma_class(mpath_class: str) -> bool:
+    """True for the invasive-melanoma classes.
+
+    Class II is excluded deliberately: it holds melanoma in situ AND
+    high-grade dysplasia, so the class alone does not establish melanoma.
+    Use the melanoma_subtype field for that.
+    """
+    return _normalise(mpath_class) in ("III", "IV")
+
+
+def is_ambiguous(grade: str, melanoma_subtype: str | None = None,
                  breslow_mm: float | None = None) -> bool:
-    """True when the stratum label alone does not pin down one class."""
-    return len(expected_classes(stratum, melanoma_subtype, breslow_mm)) > 1
+    """True when a LEGACY three-tier label does not pin down one class.
+
+    Only meaningful for imports. Study strata are classes and are never
+    ambiguous.
+    """
+    return len(class_from_dysplasia_grade(
+        grade, melanoma_subtype, breslow_mm)) > 1
 
 
 def requires_reexcision(mpath_class: str) -> bool:
