@@ -20,3 +20,20 @@ jobs:
       - run: python tests/test_smoke.py
       - run: python tests/test_e2e.py
       - run: pip install ruff && ruff check --select E9,F,B,PLE .
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt playwright
+      - run: playwright install --with-deps chromium
+      # Stubbed: real Chromium against the real app, no API key, no spend.
+      - run: python tests/browser/test_app_browser.py --repeat 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-test-artifacts
+          path: _browser_test/

@@ -1,0 +1,57 @@
+[
+  {
+    "test": "app_loads",
+    "ok": true,
+    "seconds": 0.0
+  },
+  {
+    "test": "stub_banner",
+    "ok": true,
+    "seconds": 0.0
+  },
+  {
+    "test": "three_input_modes",
+    "ok": true,
+    "seconds": 0.6
+  },
+  {
+    "test": "no_file_dialog_needed",
+    "ok": true,
+    "seconds": 2.0
+  },
+  {
+    "test": "sample_case_disclaimed",
+    "ok": true,
+    "seconds": 1.1
+  },
+  {
+    "test": "url_wrong_count_rejected",
+    "ok": true,
+    "seconds": 2.0
+  },
+  {
+    "test": "url_ssrf_blocked",
+    "ok": true,
+    "seconds": 2.4
+  },
+  {
+    "test": "grade_nevus",
+    "ok": true,
+    "seconds": 10.2
+  },
+  {
+    "test": "downloads_nevus",
+    "ok": true,
+    "seconds": 0.9
+  },
+  {
+    "test": "grade_cscc",
+    "ok": true,
+    "seconds": 7.6
+  },
+  {
+    "test": "downloads_cscc",
+    "ok": true,
+    "seconds": 0.9
+  }
+]

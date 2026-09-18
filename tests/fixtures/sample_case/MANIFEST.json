@@ -1,0 +1,117 @@
+{
+  "what_this_is": "Pipeline smoke-test fixtures. Each pathway's four images are centre crops of ONE real Wikimedia Commons histopathology image, at progressively tighter framing, standing in for a whole-slide / 4x / 10x / 40x series.",
+  "what_this_is_not": "A real case. The crops are not true optical magnifications, the lesion carries no reference diagnosis here, and a grade produced from them is diagnostically meaningless. They exist to prove the pipeline runs end to end. Never let one into a results table.",
+  "licensing": "Both source images are Creative Commons licensed and are redistributed here under those terms. See each pathway's source.source_page for the authoritative attribution.",
+  "crop_fractions": {
+    "whole_slide": 1.0,
+    "4x": 0.55,
+    "10x": 0.28,
+    "40x": 0.12
+  },
+  "pathways": {
+    "CSCC": {
+      "source": {
+        "title": "File:Acantholytic squamous cell carcinoma (3045604513).jpg",
+        "license": "CC BY 2.0",
+        "attribution": "see source page",
+        "source_page": "https://commons.wikimedia.org/wiki/File:Acantholytic_squamous_cell_carcinoma_(3045604513).jpg"
+      },
+      "source_file": "_source.jpg",
+      "derived": [
+        {
+          "magnification": "whole_slide",
+          "crop_fraction_of_source": 1.0,
+          "upscale_applied": 0.94,
+          "pixels": [
+            900,
+            723
+          ],
+          "bytes": 415470
+        },
+        {
+          "magnification": "4x",
+          "crop_fraction_of_source": 0.55,
+          "upscale_applied": 1.7,
+          "pixels": [
+            900,
+            723
+          ],
+          "bytes": 323192
+        },
+        {
+          "magnification": "10x",
+          "crop_fraction_of_source": 0.28,
+          "upscale_applied": 3.36,
+          "pixels": [
+            900,
+            722
+          ],
+          "bytes": 210006
+        },
+        {
+          "magnification": "40x",
+          "crop_fraction_of_source": 0.12,
+          "upscale_applied": 4.0,
+          "pixels": [
+            460,
+            368
+          ],
+          "bytes": 50900
+        }
+      ]
+    },
+    "Nevus": {
+      "source": {
+        "title": "File:BRAF V600E mutant melanoma.jpg",
+        "license": "CC BY-SA 4.0",
+        "attribution": "see source page",
+        "source_page": "https://commons.wikimedia.org/wiki/File:BRAF_V600E_mutant_melanoma.jpg"
+      },
+      "source_file": "_source.jpg",
+      "derived": [
+        {
+          "magnification": "whole_slide",
+          "crop_fraction_of_source": 1.0,
+          "upscale_applied": 0.94,
+          "pixels": [
+            900,
+            668
+          ],
+          "bytes": 272230
+        },
+        {
+          "magnification": "4x",
+          "crop_fraction_of_source": 0.55,
+          "upscale_applied": 1.7,
+          "pixels": [
+            900,
+            666
+          ],
+          "bytes": 194260
+        },
+        {
+          "magnification": "10x",
+          "crop_fraction_of_source": 0.28,
+          "upscale_applied": 3.36,
+          "pixels": [
+            900,
+            668
+          ],
+          "bytes": 124441
+        },
+        {
+          "magnification": "40x",
+          "crop_fraction_of_source": 0.12,
+          "upscale_applied": 4.0,
+          "pixels": [
+            460,
+            340
+          ],
+          "bytes": 28608
+        }
+      ]
+    }
+  },
+  "target_long_edge_px": 900,
+  "max_upscale": 4.0
+}
