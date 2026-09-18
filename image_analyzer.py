@@ -1,337 +1,239 @@
+"""CSCC differentiation grading call (protocol v2.0).
+
+Changes from v1
+---------------
+1. Four captioned images per case instead of one, plus a
+   `magnification_evidence` field recording which power each finding
+   came from.
+2. Structured outputs replace the three-layer parser. v1 fell through
+   JSON -> regex -> keyword inference, and the keyword layer defaulted to
+   "Moderately Differentiated" when it could not decide - a fabricated
+   grade that looked identical to a real one in the logs (CLAUDE.md
+   landmine 4). The schema is now enforced by the API and a malformed
+   response raises.
+3. Model is config.MODEL_ID; max_tokens is config.MAX_TOKENS, up from
+   1500; the call is streamed; `temperature` is gone because this model
+   family rejects sampling parameters.
+
+The label space is unchanged: well / moderately / poorly differentiated.
+Only the melanocytic arm gained a category.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
 import os
-import sys
-import base64
-import hashlib as _hashlib
 import time
-from typing import Dict, Any
-import anthropic
+from typing import Any
+
 from anthropic import Anthropic
-import streamlit as st
+
+import config
+import image_utils
+
+
+CSCC_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "primary_grade": {
+            "type": "string",
+            "enum": ["Well Differentiated", "Moderately Differentiated",
+                     "Poorly Differentiated"],
+        },
+        "confidence_level": {"type": "string",
+                             "enum": ["High", "Medium", "Low"]},
+        "keratinization_present": {"type": "boolean"},
+        "atypia_level": {"type": "string",
+                         "enum": ["minimal", "moderate", "high"]},
+        "key_features": {"type": "array", "items": {"type": "string"}},
+        "magnification_evidence": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "magnification": {"type": "string",
+                                      "enum": list(config.MAGNIFICATIONS)},
+                    "finding": {"type": "string"},
+                },
+                "required": ["magnification", "finding"],
+                "additionalProperties": False,
+            },
+        },
+        "additional_observations": {"type": "string"},
+    },
+    "required": [
+        "primary_grade", "confidence_level", "keratinization_present",
+        "atypia_level", "key_features", "magnification_evidence",
+        "additional_observations",
+    ],
+    "additionalProperties": False,
+}
+
+OUTPUT_SCHEMA_FIELDS = list(CSCC_OUTPUT_SCHEMA["properties"].keys())
+
 
 class ImageAnalyzer:
-    """Image analyzer using Claude for multimodal pathology image analysis"""
-    
+    """Cutaneous squamous cell carcinoma differentiation grader."""
+
     def __init__(self, rag_system):
-        """Initialize the image analyzer with RAG system"""
         self.rag_system = rag_system
         self.setup_claude()
-    
-    def setup_claude(self):
-        """Setup Claude API client"""
-        try:
-            # Get API key from environment
-            anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-            if not anthropic_key:
-                raise Exception("ANTHROPIC_API_KEY environment variable not set")
-            
-            # Initialize Claude client
-            self.client = Anthropic(api_key=anthropic_key)
-            self.model = "claude-opus-4-5-20251101"
-            
-        except Exception as e:
-            st.error(f"Failed to setup Claude API: {str(e)}")
-            raise
-    
+
+    def setup_claude(self) -> None:
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            raise RuntimeError("ANTHROPIC_API_KEY environment variable not set")
+        self.client = Anthropic(api_key=api_key)
+        self.model = config.MODEL_ID
+
+    # ── prompt ───────────────────────────────────────────────────────
+
     def create_analysis_prompt(self, context: str) -> str:
-        """Create a comprehensive prompt for SCC differentiation grading"""
-        
-        prompt = f"""
-You are an expert dermatopathologist analyzing a histopathology image of cutaneous squamous cell carcinoma (CSCC) for differentiation grading. 
+        mags = ", ".join(config.MAGNIFICATIONS)
+        return f"""You are an expert dermatopathologist grading the differentiation
+of a cutaneous squamous cell carcinoma (CSCC).
 
-Based on the following medical literature context from authoritative sources:
+You have been given {len(config.MAGNIFICATIONS)} images of the SAME lesion at
+different magnifications, in this order: {mags}. Read them together: judge
+tumour architecture and invasive pattern at low power, then keratinization and
+cytologic atypia at high power. Do not grade from one image alone.
 
+Retrieved literature context:
 {context}
 
-ANALYZE the provided histopathology image for these features:
-- Keratinization: keratin pearls, horn cysts, intracellular keratin (present = better differentiated)
-- Cellular atypia: pleomorphism, nuclear abnormalities (high = poorly differentiated)  
-- Tumor architecture: organized vs infiltrative/disorganized
-- Squamous maturation: gradient from basal to keratinized cells
-- Mitotic activity: low, moderate, or high
+### ASSESS
 
-GRADING CRITERIA:
-- Well Differentiated: abundant keratinization, keratin pearls present, minimal atypia, organized
-- Moderately Differentiated: some keratinization, moderate atypia
-- Poorly Differentiated: minimal/absent keratinization, high atypia, infiltrative, basaloid
+- Keratinization: keratin pearls, horn cysts, intracellular keratin.
+  More keratinization means better differentiated.
+- Cellular atypia: pleomorphism, nuclear abnormalities. More atypia means
+  more poorly differentiated.
+- Architecture: organised and pushing versus infiltrative and disorganised.
+- Squamous maturation: the gradient from basal to keratinised cells.
+- Mitotic activity: low, moderate or high.
 
-YOU MUST PROVIDE A GRADE. Respond with a JSON object in this exact format:
-```json
-{{
-  "primary_grade": "Well Differentiated" or "Moderately Differentiated" or "Poorly Differentiated",
-  "confidence_level": "High" or "Medium" or "Low",
-  "keratinization_present": true or false,
-  "atypia_level": "minimal" or "moderate" or "high",
-  "key_features": ["feature 1", "feature 2", "feature 3"],
-  "additional_observations": "any other findings"
-}}
-```
+### GRADING CRITERIA
 
-RULES:
-1. You MUST choose one of the three grades - never leave it blank or unknown
-2. If keratinization is absent/minimal AND atypia is high → grade is "Poorly Differentiated"
-3. If abundant keratinization AND minimal atypia → grade is "Well Differentiated"
-4. When uncertain, base grade on the predominant features observed
-5. For mixed grades, report the worst (least differentiated) component
-"""
-        return prompt
-    
-    def analyze_image(self, image_data: str, media_type: str = "image/jpeg",
-                      case_logger=None) -> Dict[str, Any]:
-        """Analyze the pathology image using Claude with RAG context"""
-        try:
-            # Get relevant context from RAG system
-            context = self.rag_system.get_grading_criteria()
-            
-            # Create analysis prompt
-            prompt = self.create_analysis_prompt(context)
-            
-            # Prepare the message for Claude
-            message = {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    },
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_data
-                        }
-                    }
-                ]
-            }
-            
-            # Call Claude API
-            _t0 = time.time()
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=1500,
-                temperature=0.1,  # Low temperature for consistent medical analysis
-                messages=[message]
-            )
-            _latency_ms = int((time.time() - _t0) * 1000)
-            
-            # Parse the response
-            analysis_text = response.content[0].text
-            
-            # Extract structured information from the response
-            result = self.parse_analysis_response(analysis_text)
-            result['raw_analysis'] = analysis_text
-            result['context_used'] = len(context.split()) > 0
+- Well differentiated: abundant keratinization, keratin pearls present,
+  minimal atypia, organised architecture.
+- Moderately differentiated: some keratinization, moderate atypia.
+- Poorly differentiated: minimal or absent keratinization, high atypia,
+  infiltrative, basaloid.
 
-            # ── case logging ──────────────────────────────────────────────────
-            if case_logger is not None:
-                _img_bytes  = base64.b64decode(image_data)
-                _img_sha    = _hashlib.sha256(_img_bytes).hexdigest()
-                case_logger.set_request(
-                    model=self.model, temperature=0.1, max_tokens=1500,
-                    system_text="", user_text=prompt,
-                    image_sha256=_img_sha, sent_media_type=media_type,
-                )
-                case_logger.set_response(
-                    api_request_id=getattr(response, 'id', ''),
-                    model_returned=getattr(response, 'model', ''),
-                    stop_reason=getattr(response, 'stop_reason', '') or '',
-                    input_tokens=response.usage.input_tokens,
-                    output_tokens=response.usage.output_tokens,
-                    latency_ms=_latency_ms,
-                    raw_text=analysis_text,   # byte-for-byte, before any parsing
-                )
-                _strategy = getattr(self, '_last_parse_strategy', 'direct_json')
-                case_logger.set_parsing(
-                    strategy_used=_strategy,
-                    fallback_invoked=(_strategy != 'direct_json'),
-                    parse_errors=getattr(self, '_last_parse_errors', []),
-                    parsed={k: result.get(k) for k in [
-                        'primary_grade', 'confidence_level',
-                        'keratinization_present', 'atypia_level',
-                        'key_features', 'additional_observations',
-                    ]},
-                )
-                if hasattr(self.rag_system, '_retrieval_log'):
-                    _rlog = self.rag_system._retrieval_log
-                    _ctx_sha = _hashlib.sha256(context.encode()).hexdigest()
-                    case_logger.set_retrieval(
-                        subqueries_issued=list(dict.fromkeys(r['query'] for r in _rlog)),
-                        retrieved_chunk_ids_in_order=[r['chunk_id'] for r in _rlog],
-                        context_block_sha256=_ctx_sha,
-                        manifest_context_sha256=getattr(
-                            case_logger, '_manifest_context_sha256', ''),
-                    )
-            # ─────────────────────────────────────────────────────────────────
+### RULES
 
-            return result
-            
-        except Exception as e:
-            st.error(f"Image analysis failed: {str(e)}")
-            raise
-    
-    def parse_analysis_response(self, response_text: str) -> Dict[str, Any]:
-        """Parse Claude's response into structured format with multiple fallbacks"""
-        import re
-        import json
-        
-        result = {
-            'primary_grade': 'Unknown',
-            'confidence_level': 'Medium',
-            'key_features': [],
-            'additional_observations': '',
-            'raw_analysis': response_text,
-            'keratinization_present': None,
-            'atypia_level': None
-        }
-        
-        # LAYER 1: Try to parse JSON from response
-        self._last_parse_strategy = 'direct_json'   # logging
-        self._last_parse_errors   = []              # logging
-        json_parsed = self._try_parse_json(response_text, result)
-        
-        # LAYER 2: If JSON failed or grade still unknown, try regex patterns
-        if result['primary_grade'] == 'Unknown':
-            self._try_regex_parsing(response_text, result)
-            self._last_parse_strategy = 'regex'     # logging
-        
-        # LAYER 3: If still unknown, infer grade from feature keywords in text
-        if result['primary_grade'] == 'Unknown':
-            self._infer_grade_from_features(response_text, result)
-            self._last_parse_strategy = 'keyword_inference'   # logging
-        
+1. Choose one of the three grades. Do not return unknown.
+2. Minimal or absent keratinization AND high atypia means poorly
+   differentiated.
+3. Abundant keratinization AND minimal atypia means well differentiated.
+4. For a mixed-grade tumour, report the worst (least differentiated)
+   component.
+5. In `magnification_evidence`, cite at least one finding per magnification,
+   naming only what that power can actually show. Keratin pearls are
+   assessable at 4x and 10x; nuclear detail and mitoses need 40x.
+6. Grade what is in front of you. Do not hedge to the middle category to
+   avoid committing."""
+
+    # ── call ─────────────────────────────────────────────────────────
+
+    def analyze_images(self, prepared_images: list, case_logger=None
+                       ) -> dict[str, Any]:
+        """Grade one case from its prepared multi-magnification images."""
+        context = self.rag_system.get_grading_criteria()
+        prompt = self.create_analysis_prompt(context)
+
+        content = image_utils.build_image_content_blocks(prepared_images)
+        content.append({"type": "text", "text": prompt})
+
+        started = time.time()
+        with self.client.messages.stream(
+            model=self.model,
+            max_tokens=config.MAX_TOKENS,
+            thinking=config.THINKING,
+            output_config={
+                "effort": config.EFFORT,
+                "format": {"type": "json_schema", "schema": CSCC_OUTPUT_SCHEMA},
+            },
+            messages=[{"role": "user", "content": content}],
+        ) as stream:
+            response = stream.get_final_message()
+        latency_ms = int((time.time() - started) * 1000)
+
+        analysis_text = next(
+            (b.text for b in response.content if b.type == "text"), "")
+        result = self.parse_analysis_response(analysis_text)
+        result["raw_analysis"] = analysis_text
+        result["context_used"] = bool(context.strip())
+
+        if case_logger is not None:
+            self._log(case_logger, prepared_images, prompt, context,
+                      response, analysis_text, latency_ms, result)
         return result
-    
-    def _try_parse_json(self, response_text: str, result: Dict[str, Any]) -> bool:
-        """Try to extract and parse JSON from response"""
-        import re
-        import json
-        
-        # Look for JSON in code blocks or raw JSON
-        json_patterns = [
-            r'```json\s*(\{.*?\})\s*```',  # JSON in code block
-            r'```\s*(\{.*?\})\s*```',       # JSON in generic code block
-            r'(\{[^{}]*"primary_grade"[^{}]*\})',  # Raw JSON with primary_grade
-        ]
-        
-        for pattern in json_patterns:
-            match = re.search(pattern, response_text, re.DOTALL | re.IGNORECASE)
-            if match:
-                try:
-                    json_str = match.group(1)
-                    data = json.loads(json_str)
-                    
-                    # Extract grade
-                    if 'primary_grade' in data:
-                        grade = data['primary_grade']
-                        result['primary_grade'] = self._normalize_grade(grade)
-                    
-                    # Extract other fields
-                    if 'confidence_level' in data:
-                        result['confidence_level'] = data['confidence_level'].capitalize()
-                    if 'key_features' in data:
-                        result['key_features'] = data['key_features'] if isinstance(data['key_features'], list) else [data['key_features']]
-                    if 'additional_observations' in data:
-                        result['additional_observations'] = data['additional_observations']
-                    if 'keratinization_present' in data:
-                        result['keratinization_present'] = data['keratinization_present']
-                    if 'atypia_level' in data:
-                        result['atypia_level'] = data['atypia_level']
-                    
-                    return True
-                except json.JSONDecodeError:
-                    continue
-        return False
-    
-    def _try_regex_parsing(self, response_text: str, result: Dict[str, Any]) -> None:
-        """Try multiple regex patterns to extract grade"""
-        import re
-        
-        # Multiple patterns to catch different formats
-        grade_patterns = [
-            r'["\']?primary_grade["\']?\s*[:\s]+["\']?(Well Differentiated|Moderately Differentiated|Poorly Differentiated)["\']?',
-            r'Primary Grade[:\s]+\**\s*(Well Differentiated|Moderately Differentiated|Poorly Differentiated)',
-            r'\*\*Primary Grade\*\*[:\s]+(Well Differentiated|Moderately Differentiated|Poorly Differentiated)',
-            r'Grade[:\s]+\**\s*(Well|Moderately|Poorly)\s+Differentiated',
-            r'(Well|Moderately|Poorly)\s+Differentiated\s+(SCC|squamous cell carcinoma)',
-            r'this\s+(is|appears|represents)\s+(?:a\s+)?(well|moderately|poorly)\s+differentiated',
-            r'classified\s+as\s+(well|moderately|poorly)\s+differentiated',
-            r'diagnosis[:\s]+(well|moderately|poorly)\s+differentiated',
-        ]
-        
-        for pattern in grade_patterns:
-            match = re.search(pattern, response_text, re.IGNORECASE)
-            if match:
-                grade_text = match.group(1) if match.lastindex else match.group(0)
-                result['primary_grade'] = self._normalize_grade(grade_text)
-                if result['primary_grade'] != 'Unknown':
-                    break
-        
-        # Extract confidence if not already set
-        conf_patterns = [
-            r'["\']?confidence_level["\']?\s*[:\s]+["\']?(High|Medium|Low)["\']?',
-            r'Confidence[:\s]+\**(High|Medium|Low)',
-        ]
-        for pattern in conf_patterns:
-            match = re.search(pattern, response_text, re.IGNORECASE)
-            if match:
-                result['confidence_level'] = match.group(1).capitalize()
-                break
-    
-    def _infer_grade_from_features(self, response_text: str, result: Dict[str, Any]) -> None:
-        """Infer grade from described features as last resort"""
-        text_lower = response_text.lower()
-        
-        # Count indicators for each grade
-        poorly_indicators = [
-            'no keratinization', 'absent keratinization', 'minimal keratinization',
-            'lack of keratinization', 'without keratinization', 'no keratin pearls',
-            'basaloid', 'high atypia', 'marked atypia', 'severe atypia',
-            'high-grade atypia', 'infiltrative', 'disorganized', 'anaplastic',
-            'lack of maturation', 'no maturation', 'undifferentiated',
-            'high mitotic', 'numerous mitoses', 'pleomorphic'
-        ]
-        
-        well_indicators = [
-            'abundant keratinization', 'keratin pearls present', 'prominent keratinization',
-            'well-formed keratin', 'horn pearls', 'mature squamous',
-            'minimal atypia', 'low atypia', 'organized architecture',
-            'orderly maturation', 'low mitotic', 'rare mitoses',
-            'well differentiated features', 'good differentiation'
-        ]
-        
-        moderate_indicators = [
-            'some keratinization', 'focal keratinization', 'partial keratinization',
-            'moderate atypia', 'intermediate', 'moderately differentiated features'
-        ]
-        
-        poorly_score = sum(1 for ind in poorly_indicators if ind in text_lower)
-        well_score = sum(1 for ind in well_indicators if ind in text_lower)
-        moderate_score = sum(1 for ind in moderate_indicators if ind in text_lower)
-        
-        # Determine grade based on scores
-        if poorly_score > well_score and poorly_score > moderate_score:
-            result['primary_grade'] = 'Poorly Differentiated'
-            result['confidence_level'] = 'Medium'
-        elif well_score > poorly_score and well_score > moderate_score:
-            result['primary_grade'] = 'Well Differentiated'
-            result['confidence_level'] = 'Medium'
-        elif moderate_score > 0 or (poorly_score > 0 and well_score > 0):
-            result['primary_grade'] = 'Moderately Differentiated'
-            result['confidence_level'] = 'Medium'
-        else:
-            # Default to moderately if we can't determine
-            result['primary_grade'] = 'Moderately Differentiated'
-            result['confidence_level'] = 'Low'
-    
-    def _normalize_grade(self, grade_text: str) -> str:
-        """Normalize grade text to standard format"""
-        if not grade_text:
-            return 'Unknown'
-        grade_lower = grade_text.lower()
-        if 'poorly' in grade_lower:
-            return 'Poorly Differentiated'
-        elif 'moderately' in grade_lower:
-            return 'Moderately Differentiated'
-        elif 'well' in grade_lower:
-            return 'Well Differentiated'
-        return 'Unknown'
+
+    def _log(self, case_logger, prepared_images, prompt, context,
+             response, analysis_text, latency_ms, result) -> None:
+        case_logger.set_request(
+            model=self.model,
+            max_tokens=config.MAX_TOKENS,
+            temperature=config.TEMPERATURE,
+            thinking=config.THINKING,
+            effort=config.EFFORT,
+            system_text="",
+            user_text=prompt,
+            message_structure=image_utils.message_structure(
+                prepared_images,
+                hashlib.sha256(prompt.encode()).hexdigest()),
+            schema_enforced=True,
+            output_schema_sha256=hashlib.sha256(
+                json.dumps(CSCC_OUTPUT_SCHEMA, sort_keys=True).encode()
+            ).hexdigest(),
+        )
+        case_logger.set_response(
+            api_request_id=getattr(response, "id", ""),
+            model_returned=getattr(response, "model", ""),
+            stop_reason=getattr(response, "stop_reason", "") or "",
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            latency_ms=latency_ms,
+            raw_text=analysis_text,
+        )
+        case_logger.set_parsing(
+            strategy_used=self._last_parse_strategy,
+            fallback_invoked=(self._last_parse_strategy != "structured_output"),
+            parse_errors=self._last_parse_errors,
+            parsed={k: result.get(k) for k in OUTPUT_SCHEMA_FIELDS},
+        )
+        if hasattr(self.rag_system, "_retrieval_log"):
+            rlog = self.rag_system._retrieval_log
+            case_logger.set_retrieval(
+                subqueries_issued=list(dict.fromkeys(r["query"] for r in rlog)),
+                retrieved_chunk_ids_in_order=[r["chunk_id"] for r in rlog],
+                context_block_sha256=hashlib.sha256(
+                    context.encode()).hexdigest(),
+                manifest_context_sha256=getattr(
+                    case_logger, "_manifest_context_sha256", ""),
+            )
+
+    # ── parsing ──────────────────────────────────────────────────────
+
+    def parse_analysis_response(self, response_text: str) -> dict[str, Any]:
+        """Parse the response.
+
+        The schema is enforced server-side, so this is a plain json.loads.
+        On failure it raises rather than inferring a grade from keywords:
+        the v1 fallback's silent default to "Moderately Differentiated"
+        was indistinguishable from a genuine answer once logged.
+        """
+        self._last_parse_strategy = "structured_output"
+        self._last_parse_errors = []
+        try:
+            data = json.loads(response_text)
+        except json.JSONDecodeError as exc:
+            self._last_parse_strategy = "failed"
+            self._last_parse_errors = [str(exc)]
+            raise ValueError(
+                "structured output did not return valid JSON; refusing to "
+                "infer a grade from free text. Raw response preserved in the "
+                f"case log. Error: {exc}"
+            ) from exc
+        return {k: data.get(k) for k in OUTPUT_SCHEMA_FIELDS}
