@@ -1,0 +1,6 @@
+case_id,reference_class,lesion_category,dysplasia_grade,melanoma_subtype,melanoma_histologic_subtype,breslow_mm,ulceration,reference_source,image_source_registry,notes
+NEV-0001,I,dysplastic_nevus,mild,not_applicable,not_applicable,,,consensus_of_two_dermpaths,,example row - delete before use
+NEV-0002,II,dysplastic_nevus,severe,not_applicable,not_applicable,,,consensus_of_two_dermpaths,,"Class II via high-grade dysplasia"
+NEV-0003,II,melanoma,not_applicable,in_situ,lentigo_maligna,,,consensus_of_two_dermpaths,,"Class II via melanoma in situ - same class as the row above; melanoma_subtype is what separates them"
+NEV-0004,III,melanoma,not_applicable,invasive,superficial_spreading,0.45,FALSE,consensus_of_two_dermpaths,,"invasive <0.8 mm"
+NEV-0005,IV,melanoma,not_applicable,invasive,nodular,2.10,TRUE,consensus_of_two_dermpaths,,"invasive >=0.8 mm"

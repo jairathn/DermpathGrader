@@ -1,0 +1,32 @@
+# Fallback dependency list. pyproject.toml plus uv.lock remain the
+# authoritative source for the pinned environment.
+#
+# Prefer:   uv sync
+# Fallback: pip install -r requirements.txt
+
+streamlit
+anthropic>=1.6.0        # 1.x; structured outputs, streaming, adaptive thinking
+chromadb>=1.0.12
+pillow>=11.2.1
+pandas
+numpy
+
+# PDF loading and chunking for the vector stores. langchain_text_splitters
+# is the current home of RecursiveCharacterTextSplitter; the langchain
+# metapackage is not needed.
+langchain-community
+langchain-core
+langchain-text-splitters
+pypdf
+
+# Managed hosts (Streamlit Community Cloud among them) ship a SQLite
+# older than the 3.35 chromadb requires, and it cannot be apt-installed
+# there. sqlite_compat.py swaps this in at import time. Harmless
+# locally: the shim only activates when the system SQLite is too old.
+pysqlite3-binary; sys_platform == "linux"
+
+# Optional: only extract_tiles.py needs it, for reading .svs whole-slide
+# images. Also requires the OpenSlide C library, which is a system
+# package (apt install libopenslide0 / brew install openslide).
+# If tiles are exported by ImageScope or QuPath instead, skip this.
+# openslide-python

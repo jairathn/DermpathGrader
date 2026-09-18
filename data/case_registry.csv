@@ -1,0 +1,1 @@
+case_id,pathway,reference_stratum,lesion_category,dysplasia_grade,melanoma_subtype,melanoma_histologic_subtype,breslow_mm,svs_path,svs_sha256,tile_whole_slide,tile_4x,tile_10x,tile_40x,tile_selection_method,image_source_registry,native_objective_power,notes
