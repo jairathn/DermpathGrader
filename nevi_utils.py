@@ -185,10 +185,14 @@ def display_nevi_results(result: Dict[str, Any]):
             "high-grade (high-end moderate-to-severe) atypia and includes "
             "melanoma in situ; Class III is invasive melanoma under "
             "0.8 mm; Class IV is 0.8 mm or greater.")
-        for cls in mpath_dx.CLASSES:
+        for cls in mpath_dx.GRADEABLE_CLASSES:
             definition = mpath_dx.CLASS_DEFINITIONS[cls]
             st.write(f"**Class {cls} - {definition['label']}**: "
                      f"{definition['definition']}")
+        st.caption(
+            "The published schema also defines Class 0, nondiagnostic. "
+            "This study is forced choice, so it is not an answer the "
+            "grader may give and it is not shown above.")
         st.caption(mpath_dx.CITATION)
 
     with st.expander("Raw model output"):
