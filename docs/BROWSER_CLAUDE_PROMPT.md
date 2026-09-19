@@ -20,7 +20,7 @@ WHAT IT IS
 A dermatopathology grading tool with two tabs. "CSCC differentiation"
 grades squamous cell carcinoma as well / moderately / poorly
 differentiated. "Melanocytic lesions" assigns an MPATH-Dx v2.0 class
-(0, I, II, III or IV) and, for melanoma, in situ versus invasive plus a
+(I, II, III or IV) and, for melanoma, in situ versus invasive plus a
 Breslow estimate. Every case needs exactly four images: whole slide, 4x,
 10x and 40x, in that order.
 
@@ -121,3 +121,6 @@ Things that are real bugs and worth acting on immediately:
 - A grade appearing with an "Analysis failed" message.
 - A downloaded log whose `protocol_version` is not the current one.
 - An internal-consistency error on the sample case.
+- Any result offering "nondiagnostic" as a class, category or adequacy
+  value. The protocol is forced choice; the model must commit on every
+  case, and a nondiagnostic answer means an older build is deployed.

@@ -17,6 +17,7 @@ import hashlib
 import json
 
 import config
+import mpath_dx
 import pathlib
 import sys
 from typing import Dict, List, Tuple
@@ -602,6 +603,22 @@ def check_log(log: dict, log_path: str, manifest_session_id: str,
     check(f"[{pfx}] L22c", req.get("effort") == config.EFFORT,
           f"request.effort == {config.EFFORT!r}",
           f"request.effort = {req.get('effort')!r}, expected {config.EFFORT!r}")
+
+    parsed_grade = log.get("parsing", {}).get("parsed", {}) or {}
+    if pathway == "Nevus":
+        answered = str(parsed_grade.get("mpath_dx_v2_class") or "")
+        check(f"[{pfx}] L21f",
+              not answered or answered in mpath_dx.GRADEABLE_CLASSES,
+              f"mpath_dx_v2_class {answered!r} is a gradeable class",
+              f"mpath_dx_v2_class is {answered!r}; under forced choice only "
+              f"{list(mpath_dx.GRADEABLE_CLASSES)} may be answered")
+    adequacy = str(parsed_grade.get("specimen_adequacy") or "")
+    check(f"[{pfx}] L21g",
+          not adequacy or adequacy in config.SPECIMEN_ADEQUACY,
+          f"specimen_adequacy {adequacy!r} is in the forced-choice vocabulary",
+          f"specimen_adequacy is {adequacy!r}; only "
+          f"{list(config.SPECIMEN_ADEQUACY)} are allowed - a nondiagnostic "
+          f"value means an older-protocol log slipped through")
 
     check(f"[{pfx}] L22d", req.get("schema_enforced") is True,
           "request.schema_enforced is True",

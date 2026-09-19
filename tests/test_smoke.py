@@ -180,7 +180,7 @@ def test_analyzer_schemas_cover_the_study_labels():
 
     properties = NEVUS_OUTPUT_SCHEMA["properties"]
     classes = properties["mpath_dx_v2_class"]["enum"]
-    assert classes == list(mpath_dx.CLASSES)
+    assert classes == list(mpath_dx.GRADEABLE_CLASSES)
     # Every sampled stratum must be an emittable answer.
     assert set(config.NEVUS_STRATA) <= set(classes)
     assert properties["melanoma_subtype"]["enum"] == list(
@@ -200,6 +200,7 @@ def test_consistency_flags_catch_a_contradictory_answer():
     def make(**overrides):
         base = {"mpath_dx_v2_class": "I",
                 "lesion_category": "dysplastic_nevus",
+                "specimen_adequacy": "adequate",
                 "dysplasia_grade": "mild",
                 "melanoma_subtype": "not_applicable",
                 "melanoma_histologic_subtype": "not_applicable",
@@ -243,6 +244,57 @@ def test_consistency_flags_catch_a_contradictory_answer():
     # A nevus cannot sit in an invasive-melanoma class.
     assert not make(mpath_dx_v2_class="III",
                     dysplasia_grade="severe")["internally_consistent"]
+
+
+def test_forced_choice_leaves_no_way_to_decline():
+    """Every output enum must force a committed answer.
+
+    An opt-out lets the model decline the cases it finds hardest, which
+    inflates its accuracy on the rest and makes it incomparable with a
+    reader who had to commit.
+    """
+    from nevi_analyzer import NEVUS_OUTPUT_SCHEMA
+    from image_analyzer import CSCC_OUTPUT_SCHEMA
+    import nevi_analyzer
+    import image_analyzer
+
+    for schema in (NEVUS_OUTPUT_SCHEMA, CSCC_OUTPUT_SCHEMA):
+        for field, spec in schema["properties"].items():
+            for value in spec.get("enum", []):
+                assert "nondiagnostic" not in str(value).lower(), \
+                    f"{field} still offers {value!r}"
+
+    assert "0" not in NEVUS_OUTPUT_SCHEMA["properties"]["mpath_dx_v2_class"]["enum"]
+    assert "0" in mpath_dx.CLASSES          # published schema kept intact
+    assert "0" not in mpath_dx.GRADEABLE_CLASSES
+    assert config.SPECIMEN_ADEQUACY == ("adequate", "limited")
+
+    # The word must not appear in the prompts either: naming an option
+    # the schema forbids only makes it salient.
+    for template in (nevi_analyzer.SYSTEM_TEMPLATE,
+                     image_analyzer.SYSTEM_TEMPLATE):
+        assert "nondiagnostic" not in template.lower()
+        assert "not available to you" in template
+
+    # A poor specimen is still expressible, just not as a non-answer.
+    flag = nevi_analyzer.NeviAnalyzer._derive_consistency_flags
+    committed = flag({"mpath_dx_v2_class": "II",
+                      "lesion_category": "dysplastic_nevus",
+                      "specimen_adequacy": "limited",
+                      "dysplasia_grade": "severe",
+                      "melanoma_subtype": "not_applicable",
+                      "melanoma_histologic_subtype": "not_applicable",
+                      "breslow_estimate_mm": None})
+    assert committed["internally_consistent"]
+    smuggled = flag({"mpath_dx_v2_class": "0",
+                     "lesion_category": "dysplastic_nevus",
+                     "specimen_adequacy": "nondiagnostic",
+                     "dysplasia_grade": "severe",
+                     "melanoma_subtype": "not_applicable",
+                     "melanoma_histologic_subtype": "not_applicable",
+                     "breslow_estimate_mm": None})
+    assert not smuggled["internally_consistent"]
+    assert len(smuggled["consistency_flags"]) == 2
 
 
 def test_scoring_statistics():

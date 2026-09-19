@@ -172,7 +172,7 @@ def partition_by_protocol(logs: list[dict]) -> tuple[list[dict], list[dict]]:
 
 CSCC_LABELS = ["Well Differentiated", "Moderately Differentiated",
                "Poorly Differentiated"]
-NEVUS_LABELS = list(config.NEVUS_STRATA)   # I, II, III, IV
+NEVUS_LABELS = list(config.NEVUS_STRATA)   # I, II, III, IV; no Class 0 under forced choice
 
 _CSCC_ALIASES = {
     "well": "Well Differentiated",

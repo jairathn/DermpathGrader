@@ -56,16 +56,17 @@ NEVUS_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         # PRIMARY LABEL - the strata are the classes.
-        "mpath_dx_v2_class": {"type": "string", "enum": list(mpath_dx.CLASSES)},
+        # Forced choice: Class 0 (nondiagnostic) is in the published
+        # schema but not on this menu. config.FORCED_CHOICE explains why.
+        "mpath_dx_v2_class": {"type": "string",
+                              "enum": list(mpath_dx.GRADEABLE_CLASSES)},
         "lesion_category": {
             "type": "string",
             "enum": ["benign_nevus_no_atypia", "dysplastic_nevus",
-                     "melanoma", "nondiagnostic"],
+                     "melanoma"],
         },
-        "specimen_adequacy": {
-            "type": "string",
-            "enum": ["adequate", "limited", "nondiagnostic"],
-        },
+        "specimen_adequacy": {"type": "string",
+                              "enum": list(config.SPECIMEN_ADEQUACY)},
         # Descriptive; cross-tabulated against class, not scored as a stratum.
         "dysplasia_grade": {"type": "string",
                             "enum": list(config.DYSPLASIA_GRADES)},
@@ -139,11 +140,13 @@ Retrieved literature context:
 
 Assign exactly one class. Everything else you report must be consistent with it.
 
+### YOU MUST COMMIT
+
+Every case gets exactly one of the four classes above. Declining, deferring, or answering that the case cannot be assessed is not available to you. If the material is poor, grade it anyway on what you can see, set specimen_adequacy to "limited", lower confidence_level, and say in grading_rationale precisely what you could not assess and what you would need in order to. A committed grade with your reservations attached is what is wanted.
+
 ### HOW TO GET THERE
 
-First decide whether the material is adequate. If it is not, use lesion_category "nondiagnostic", specimen_adequacy "nondiagnostic" and Class 0. Use "limited" when you can grade but something material is missing (no deep margin, tangential section, crush artefact) and say what in grading_rationale.
-
-Then decide what the lesion is, and place it:
+Decide what the lesion is, and place it:
 
 - Benign nevus with no meaningful atypia, or a dysplastic nevus with low-grade atypia: Class I. Melanocyte nuclei are smaller than 1.5x resting basal keratinocyte nuclei.
 - Dysplastic nevus with high-grade atypia: Class II. Nuclei from 1.5x up to and beyond 2x resting basal keratinocyte nuclei.
@@ -172,10 +175,10 @@ List the two to four diagnoses you actively considered in differential_diagnosis
 ### RULES
 
 1. Exactly one mpath_dx_v2_class.
-2. dysplasia_grade is "not_applicable" when the lesion is melanoma or nondiagnostic.
+2. dysplasia_grade is "not_applicable" when the lesion is melanoma.
 3. melanoma_subtype and melanoma_histologic_subtype are "not_applicable" when the lesion is not melanoma, and breslow_estimate_mm is null unless the melanoma is invasive.
 4. In magnification_evidence, cite at least one finding per magnification, naming only what that power can actually show.
-5. Grade what is in front of you. Do not hedge toward a middle class to avoid committing. Confidence goes in confidence_level, not in the class."""
+5. Grade what is in front of you. Do not hedge toward a middle class to avoid committing, and do not use "limited" adequacy as a way of not answering. Uncertainty belongs in confidence_level and grading_rationale, never in the class."""
 
 
 class NeviAnalyzer:
@@ -200,7 +203,7 @@ class NeviAnalyzer:
             n_images=len(config.MAGNIFICATIONS),
             magnifications=", ".join(config.MAGNIFICATIONS),
             context=context,
-            mpath_block=mpath_dx.prompt_block(),
+            mpath_block=mpath_dx.gradeable_prompt_block(),
         )
 
     # Kept for callers and make_manifest that still use the old name.
@@ -318,8 +321,11 @@ class NeviAnalyzer:
             flags.append("invasive_melanoma_without_breslow")
         if subtype == "in_situ" and breslow is not None:
             flags.append("in_situ_melanoma_with_breslow")
-        if (category == "nondiagnostic") != (adequacy == "nondiagnostic"):
-            flags.append("adequacy_and_category_disagree_on_nondiagnostic")
+        if not adequacy:
+            flags.append("specimen_adequacy_missing")
+        elif adequacy not in config.SPECIMEN_ADEQUACY:
+            flags.append(
+                f"adequacy_{adequacy}_outside_forced_choice_vocabulary")
 
         if mclass and mpath_dx.is_valid_class(mclass):
             normalised = mpath_dx._normalise(mclass)
@@ -336,10 +342,8 @@ class NeviAnalyzer:
             if not is_melanoma and mpath_dx.is_melanoma_class(normalised):
                 flags.append(f"class_{normalised}_is_invasive_melanoma_but_"
                              f"category_is_{category}")
-            if category == "nondiagnostic" and normalised != "0":
-                flags.append("nondiagnostic_with_nonzero_class")
-            if normalised == "0" and category != "nondiagnostic":
-                flags.append("class_0_without_nondiagnostic_category")
+            if normalised not in mpath_dx.GRADEABLE_CLASSES:
+                flags.append(f"class_{normalised}_is_not_a_gradeable_class")
             if category == "benign_nevus_no_atypia" and normalised != "I":
                 flags.append(f"benign_nevus_in_class_{normalised}")
 

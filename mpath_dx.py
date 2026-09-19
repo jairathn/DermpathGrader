@@ -63,7 +63,16 @@ CITATION = (
 )
 
 SCHEMA_VERSION = "MPATH-Dx v2.0"
+
+# The published schema, unchanged. Class 0 is part of it and is kept here
+# so this module remains a faithful record of what Barnhill et al. define.
 CLASSES = ("0", "I", "II", "III", "IV")
+
+# What this study allows a grader to answer. Class 0 is excluded: the
+# protocol is forced choice, so "nondiagnostic" is not on the menu. See
+# config.FORCED_CHOICE for why. Analyzers build their enum from this;
+# the scorer scores against it.
+GRADEABLE_CLASSES = ("I", "II", "III", "IV")
 BRESLOW_PT1B_CUTOFF_MM = 0.8
 
 # Class II and above carries a re-excision recommendation. That binary is
@@ -243,8 +252,35 @@ def requires_reexcision(mpath_class: str) -> bool:
     return class_rank(mpath_class) >= class_rank(MANAGEMENT_THRESHOLD_CLASS)
 
 
+def gradeable_prompt_block() -> str:
+    """Class definitions for the classes a grader may actually answer.
+
+    Class 0 is omitted deliberately: showing a grader an option it is
+    then told not to use invites it to reach for it anyway.
+    """
+    lines = [f"{SCHEMA_VERSION} classification schema (Barnhill et al., "
+             "JAMA Netw Open 2023;6(1):e2250613):", ""]
+    for cls in GRADEABLE_CLASSES:
+        d = CLASS_DEFINITIONS[cls]
+        lines.append(f"  Class {cls} - {d['label']}: {d['definition']}")
+        if d["examples"]:
+            lines.append(f"      Includes: {'; '.join(d['examples'])}.")
+    lines += [
+        "",
+        "Note on version 2.0: it replaced the five-class version 1.0 schema "
+        "and removed the standalone moderate-atypia class. Class I covers "
+        "low-grade (mild-to-moderate) atypia and Class II covers high-grade "
+        "(high-end moderate-to-severe) atypia. A lesion you grade as "
+        "moderate dysplasia may therefore be Class I or Class II; decide "
+        "from the cytologic criteria above, particularly nuclear size "
+        "relative to resting basal keratinocytes, not from the word "
+        "'moderate'.",
+    ]
+    return "\n".join(lines)
+
+
 def prompt_block() -> str:
-    """The v2.0 reference text injected into the nevus prompt.
+    """The full v2.0 reference text, Class 0 included.
 
     Lives here rather than in the analyzer so the definitions the model
     sees and the definitions the scorer applies cannot drift apart.

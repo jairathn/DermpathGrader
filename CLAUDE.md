@@ -47,6 +47,16 @@ any client is built. The key is never committed, in any form.
 | Transport | one call, no retry | one call | **retries, refusal/truncation as errors, attempts logged** |
 | Log version | 1.0 | 2.0 | **2.1** (+ `failure`, `stop_details`, cache usage) |
 
+**v2.2 (current): forced choice.** "Nondiagnostic" is gone from every
+output enum - no Class 0, no `nondiagnostic` lesion category, no
+`nondiagnostic` adequacy - and the word appears nowhere in either
+prompt. The model commits on every case. Uncertainty is carried by
+`specimen_adequacy: limited`, `confidence_level` and the rationale,
+alongside a grade rather than instead of one. `config.FORCED_CHOICE`
+holds the reasoning; `mpath_dx.CLASSES` still records the published
+five-value schema, while `mpath_dx.GRADEABLE_CLASSES` is what a grader
+may answer.
+
 `config.PROTOCOL_VERSION` is written into every log. The scorer and the
 verifier refuse to pool logs from different protocol versions; the
 batch runner refuses to run against a manifest from a different one.
@@ -100,8 +110,14 @@ is on unifying prompts, schemas and retrieval panels.
 Open.* 2023;6(1):e2250613. doi:10.1001/jamanetworkopen.2022.50613
 
 Four classes: I low-grade atypia, II high-grade atypia (**including
-melanoma in situ**), III melanoma pT1a (<0.8 mm), IV melanoma ≥pT1b, plus
-0 nondiagnostic. **The study samples these classes directly**, 50 each.
+melanoma in situ**), III melanoma pT1a (<0.8 mm), IV melanoma ≥pT1b.
+**The study samples these directly**, 50 each.
+
+The published schema also defines Class 0, nondiagnostic.
+`mpath_dx.CLASSES` keeps it so this module stays a faithful record of
+Barnhill et al.; `mpath_dx.GRADEABLE_CLASSES` omits it, and that is what
+the analyzer enum and the scorer use. Under forced choice, declining is
+not an answer a grader may give.
 
 `expected_class()` returns one class and raises on a legacy three-tier
 label, because v2.0 built its classes by deleting the standalone
@@ -152,31 +168,41 @@ truncation) are counted in `parser_summary.csv`, never scored.
    distances with pre-migration ones. `chroma_db_nevi/PROVENANCE.md`.
 3. ~~Nevus `max_tokens` too low.~~ Now `config.MAX_TOKENS` (8000),
    streamed; a `max_tokens` stop is an error, never a partial parse.
-4. ~~Keyword-inference fallback.~~ Gone. Schema enforced server-side; a
+4. **Forced choice is load-bearing; do not reintroduce an opt-out.** An
+   escape hatch lets the model decline the cases it finds hardest, which
+   inflates its accuracy on the remainder and makes the numbers
+   incomparable with a reader who had to commit. If genuinely
+   ungradeable material turns up, fix the case selection in the
+   registry; do not give the grader a way around it. Three layers hold
+   the line: the enums omit it, the prompts never name it, and the
+   consistency flags catch a smuggled value. `verify_logging` fails any
+   log carrying one.
+
+5. ~~Keyword-inference fallback.~~ Gone. Schema enforced server-side; a
    malformed response raises after one retry; the verifier fails any log
    whose `parsing.strategy_used` is not `structured_output` or `failed`.
-5. **One preprocessing path.** Never add a second.
-6. Real retrieval is noisy (a reference list ranks first for one nevus
+6. **One preprocessing path.** Never add a second.
+7. Real retrieval is noisy (a reference list ranks first for one nevus
    subquery; an affiliation block for one CSCC subquery). Known.
-7. Field selection: `extract_tiles.py --source auto` is the default and
+8. Field selection: `extract_tiles.py --source auto` is the default and
    is recorded per case. One line in limitations.
-8. **Never enable model fallbacks in `claude_transport.py`.** The SDK
+9. **Never enable model fallbacks in `claude_transport.py`.** The SDK
    can substitute another model on refusal. It would be invisible in a
    batch unless every log were read. Refusals are raised, logged with
    their category, counted, and excluded from concordance.
-9. **`run_tests.py` fills to a target, it does not append.** It counts
+10. **`run_tests.py` fills to a target, it does not append.** It counts
    successful current-protocol logs per case and runs only what is
    missing; a case that keeps failing stops after `target + 2` attempts.
    Re-running is always safe. A log from an older protocol is ignored,
    not deleted.
-10. **The manifest is a gate.** `run_tests.py` refuses to run if the
+11. **The manifest is a gate.** `run_tests.py` refuses to run if the
     manifest's protocol differs from the code's or the retrieval context
     hash differs from the manifest's. Re-run `make_manifest.py --yes`
     after any change to the prompt, schema, stores or config.
 
 ## Tests
 
-`tests/test_smoke.py` (12 unit tests) and `tests/test_e2e.py` (the whole
+`tests/test_smoke.py` (13 unit tests) and `tests/test_e2e.py` (the whole
 chain through the real batch runner, verifier, scorer and report
 renderer against a scripted API double: one transient failure, one
 refusal, one disagreeing replicate). Neither needs a key or the stores.
