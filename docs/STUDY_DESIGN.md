@@ -1,4 +1,4 @@
-# Study design, protocol v2.1
+# Study design, protocol v2.2
 
 Dated 2026-09-18. This is the design the code implements. Where a design
 decision has a consequence the code cannot fix, it is stated here rather
@@ -78,7 +78,6 @@ Schema for Melanocytic Lesions: A Consensus Statement. *JAMA Netw Open.*
 
 | Class | Definition |
 |---|---|
-| 0 | Nondiagnostic |
 | I | Low-grade atypia; nuclei <1.5x resting basal keratinocyte nuclei |
 | II | High-grade atypia; nuclei ≥1.5x to >2x. **Includes melanoma in situ** |
 | III | Invasive melanoma, Breslow <0.8 mm (pT1a) |
@@ -157,7 +156,7 @@ normal approximation does not.
 ## What the model reports beyond the label
 
 Both pathways return, per case, the fields a sign-out would carry:
-specimen adequacy (adequate / limited / nondiagnostic), a ranked
+specimen adequacy (adequate / limited), a ranked
 differential of two to four diagnoses, and the ancillary studies the
 model would order at sign-out (PRAME, Melan-A/MART-1, SOX10, HMB-45,
 Ki-67, p16, FISH, NGS, deeper levels for melanocytic; p63/p40, CK5/6,
@@ -174,6 +173,38 @@ behaviour can be described as secondary outcomes, and so that
 `report.py` can render a synoptic report a reader can compare against
 their own. Every field is enforced by the JSON schema; a response that
 does not match it is an error, not a partial result.
+
+## Forced choice
+
+Every case gets a grade. There is no nondiagnostic class, no
+nondiagnostic lesion category, and no nondiagnostic adequacy value; the
+word does not appear in either prompt, and the schema makes such a
+response unemittable.
+
+This is a design decision, not an oversight. An opt-out lets the model
+decline precisely the cases it finds hardest, which does two things at
+once: it inflates apparent accuracy on the cases it does answer, and it
+makes the result incomparable with a reader who was obliged to commit.
+Report a forced-choice number or report a decline rate, but a mixture of
+the two is not interpretable.
+
+The published MPATH-Dx v2.0 schema does define a Class 0 for
+nondiagnostic material. `mpath_dx.CLASSES` retains it so the module
+stays a faithful record; `mpath_dx.GRADEABLE_CLASSES` is the subset this
+protocol permits.
+
+Nothing is lost by this. `specimen_adequacy` still separates a clean
+section from a limited one, `confidence_level` still records how sure
+the model is, and the rationale still says what could not be assessed.
+Those travel with a committed grade instead of replacing it, so
+low-confidence and limited-specimen cases can be analysed as their own
+stratum after the fact - which is more useful than a non-answer, because
+the grade is still there to be checked.
+
+If genuinely ungradeable material reaches the grader, that is a
+case-selection problem: the 350 cases are curated and carry reference
+diagnoses. Fix it in the registry rather than handing the grader a way
+around it.
 
 ## Replicates and test-retest
 

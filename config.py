@@ -69,15 +69,36 @@ EST_OUTPUT_TOKENS = 1500
 # ── Strata ───────────────────────────────────────────────────────────
 N_PER_STRATUM = 50
 
-# MPATH-Dx v2.0 classes. Class 0 (nondiagnostic) is a valid model output
-# but is not sampled: a stratum of deliberately ungradeable slides would
-# measure scan quality, not grading.
+# MPATH-Dx v2.0 classes. Class 0 (nondiagnostic) exists in the published
+# schema but is NOT an allowed answer here - see FORCED_CHOICE below.
 NEVUS_STRATA = ("I", "II", "III", "IV")
 
 # Secondary descriptive fields, captured but not scored as strata.
 DYSPLASIA_GRADES = ("mild", "moderate", "severe", "not_applicable")
 
 MELANOMA_SUBTYPES = ("in_situ", "invasive", "not_applicable")
+
+# ── Forced choice ────────────────────────────────────────────────────
+# Every case gets a grade. "Nondiagnostic" is not offered anywhere in
+# the output schema: not as an MPATH-Dx class, not as a lesion category,
+# not as an adequacy value.
+#
+# The reason is that this is a forced-choice reader study. An opt-out
+# lets the model decline exactly the cases it finds hardest, which
+# inflates its apparent accuracy on the ones it does answer and makes
+# its numbers incomparable with a reader who had to commit. The 350
+# cases are curated and carry reference diagnoses, so genuinely
+# ungradeable material should not be in the set; if some turns up, it is
+# a case-selection problem to fix in the registry, not something the
+# model should route around at grading time.
+#
+# The signal is not lost. `specimen_adequacy` still distinguishes a
+# clean section from a limited one, and `confidence_level` still records
+# how sure the model is. Both travel alongside a committed grade rather
+# than replacing it, so a low-confidence limited-specimen call can be
+# analysed separately without ever having been a non-answer.
+FORCED_CHOICE = True
+SPECIMEN_ADEQUACY = ("adequate", "limited")
 
 # Histologic subtype, recorded for melanoma cases. Class III and IV split
 # on Breslow thickness, not on this, but it is worth capturing: the model
@@ -149,6 +170,8 @@ WSI_SUFFIXES = (".svs",)
 #        (adequacy, differential, ancillary studies; CSCC subtype, depth,
 #        Broders, high-risk features); transport retries and refusal /
 #        truncation recorded per case
+#   2.2  forced choice: "nondiagnostic" removed from every output enum,
+#        so the model must commit to a grade on every case
 #
 # ── Retrieval (unchanged from v1 - see CLAUDE.md landmine 2) ─────────
 CHROMA_DIR = {"CSCC": "chroma_db", "Nevus": "chroma_db_nevi"}
@@ -172,5 +195,5 @@ TILE_ROOT = "test_images"
 # Bump whenever the prompt scaffold, schema, magnification set or model
 # changes. Written into every case log, so a mixed-protocol batch is
 # detectable after the fact instead of being silently pooled.
-PROTOCOL_VERSION = "2.1"
-LOG_VERSION = "2.1"
+PROTOCOL_VERSION = "2.2"
+LOG_VERSION = "2.2"

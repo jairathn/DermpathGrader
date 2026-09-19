@@ -34,7 +34,8 @@ def get_confidence_color(confidence: str) -> str:
 def get_mpath_class_color(mpath_class: str) -> str:
     """Colour for an MPATH-Dx v2.0 class."""
     return {
-        "0": "#6c757d",    # nondiagnostic, grey
+        # Class 0 has no colour: the protocol is forced choice, so it is
+        # not an answer the grader can give (config.FORCED_CHOICE).
         "I": "#28a745",    # low-grade atypia, green
         "II": "#fd7e14",   # high-grade atypia, orange
         "III": "#dc3545",  # melanoma pT1a, red

@@ -59,10 +59,9 @@ CSCC_OUTPUT_SCHEMA: dict[str, Any] = {
                      "Poorly Differentiated"],
         },
         "broders_grade": {"type": "integer", "enum": [1, 2, 3, 4]},
-        "specimen_adequacy": {
-            "type": "string",
-            "enum": ["adequate", "limited", "nondiagnostic"],
-        },
+        # Forced choice: no nondiagnostic value. config.FORCED_CHOICE.
+        "specimen_adequacy": {"type": "string",
+                              "enum": list(config.SPECIMEN_ADEQUACY)},
         "histologic_subtype": {"type": "string",
                                "enum": list(HISTOLOGIC_SUBTYPES)},
         "depth_of_invasion": {"type": "string",
@@ -123,9 +122,9 @@ You will be given {n_images} images of the SAME lesion at different magnificatio
 Retrieved literature context:
 {context}
 
-### ADEQUACY FIRST
+### YOU MUST COMMIT
 
-If the material will not support a grade, use specimen_adequacy "nondiagnostic" and explain in additional_observations; still return your best grade rather than leaving fields empty. Use "limited" when you can grade but something material is missing (no deep margin, tangential section, crush artefact) and say what.
+Every case gets exactly one of the three grades. Declining, deferring, or answering that the case cannot be assessed is not available to you. If the material is poor, grade it anyway on what you can see, set specimen_adequacy to "limited", lower confidence_level, and say in additional_observations precisely what you could not assess and what you would need in order to. A committed grade with your reservations attached is what is wanted.
 
 ### ASSESS
 
@@ -158,7 +157,7 @@ List the two to four diagnoses you actively considered in differential_diagnosis
 3. Abundant keratinization AND minimal atypia means well differentiated.
 4. For a mixed-grade tumour, report the worst (least differentiated) component.
 5. In magnification_evidence, cite at least one finding per magnification, naming only what that power can actually show. Keratin pearls are assessable at 4x and 10x; nuclear detail and mitoses need 40x; perineural invasion needs 10x-40x and a nerve in the field.
-6. Grade what is in front of you. Do not hedge to the middle category to avoid committing. Confidence goes in confidence_level, not in the grade."""
+6. Grade what is in front of you. Do not hedge to the middle category to avoid committing, and do not use "limited" adequacy as a way of not answering. Uncertainty belongs in confidence_level and additional_observations, never in the grade."""
 
 
 class ImageAnalyzer:
@@ -296,7 +295,12 @@ class ImageAnalyzer:
                 "perineural_invasion", "lymphovascular_invasion",
                 "invasion_beyond_subcutaneous_fat", "bone_invasion")):
             flags.append("in_situ_with_invasive_high_risk_feature")
-        if adequacy == "nondiagnostic" and result.get("confidence_level") == "High":
-            flags.append("nondiagnostic_specimen_with_high_confidence")
+        if not adequacy:
+            flags.append("specimen_adequacy_missing")
+        elif adequacy not in config.SPECIMEN_ADEQUACY:
+            flags.append(
+                f"adequacy_{adequacy}_outside_forced_choice_vocabulary")
+        if adequacy == "limited" and result.get("confidence_level") == "High":
+            flags.append("limited_specimen_with_high_confidence")
 
         return {"consistency_flags": flags, "internally_consistent": not flags}
