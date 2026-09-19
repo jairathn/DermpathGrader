@@ -257,37 +257,16 @@ def gradeable_prompt_block() -> str:
 
     Class 0 is omitted deliberately: showing a grader an option it is
     then told not to use invites it to reach for it anyway.
+
+    There is deliberately NO counterpart that renders all five classes.
+    A prompt builder including Class 0 would have no legitimate caller
+    under this protocol and would be the easiest way to reintroduce an
+    opt-out by accident. The published schema is preserved as data, in
+    CLASSES and CLASS_DEFINITIONS, not as a prompt.
     """
     lines = [f"{SCHEMA_VERSION} classification schema (Barnhill et al., "
              "JAMA Netw Open 2023;6(1):e2250613):", ""]
     for cls in GRADEABLE_CLASSES:
-        d = CLASS_DEFINITIONS[cls]
-        lines.append(f"  Class {cls} - {d['label']}: {d['definition']}")
-        if d["examples"]:
-            lines.append(f"      Includes: {'; '.join(d['examples'])}.")
-    lines += [
-        "",
-        "Note on version 2.0: it replaced the five-class version 1.0 schema "
-        "and removed the standalone moderate-atypia class. Class I covers "
-        "low-grade (mild-to-moderate) atypia and Class II covers high-grade "
-        "(high-end moderate-to-severe) atypia. A lesion you grade as "
-        "moderate dysplasia may therefore be Class I or Class II; decide "
-        "from the cytologic criteria above, particularly nuclear size "
-        "relative to resting basal keratinocytes, not from the word "
-        "'moderate'.",
-    ]
-    return "\n".join(lines)
-
-
-def prompt_block() -> str:
-    """The full v2.0 reference text, Class 0 included.
-
-    Lives here rather than in the analyzer so the definitions the model
-    sees and the definitions the scorer applies cannot drift apart.
-    """
-    lines = [f"{SCHEMA_VERSION} classification schema (Barnhill et al., "
-             "JAMA Netw Open 2023;6(1):e2250613):", ""]
-    for cls in CLASSES:
         d = CLASS_DEFINITIONS[cls]
         lines.append(f"  Class {cls} - {d['label']}: {d['definition']}")
         if d["examples"]:

@@ -1,0 +1,307 @@
+{
+  "log_version": "2.2",
+  "protocol_version": "2.2",
+  "manifest_session_id": "2026-09-19T11:33:45Z-grading",
+  "pathway": "CSCC",
+  "case_id": "UI-sample-CSCC",
+  "replicate": 3,
+  "timestamp_utc": "2026-09-19T11:40:11Z",
+  "image_set": {
+    "source_registry": "",
+    "magnifications_expected": [
+      "whole_slide",
+      "4x",
+      "10x",
+      "40x"
+    ],
+    "magnifications_sent": [
+      "whole_slide",
+      "4x",
+      "10x",
+      "40x"
+    ],
+    "image_count": 4,
+    "total_sent_bytes": 993955,
+    "set_sha256": "82b603f0581428e0840709f9aac29fd748de379376d2eca1ac8e8c820a1fa322",
+    "wsi_source_filename": "",
+    "wsi_sha256": "",
+    "tile_selection_method": "ui_upload"
+  },
+  "images": [
+    {
+      "magnification": "whole_slide",
+      "source_filename": "<upload>",
+      "source_sha256": "8e46622b9ab2b7e5a1167f52abe524206c36e35d6e8c03cc9271cb071fc54886",
+      "source_dimensions_px": [
+        900,
+        723
+      ],
+      "sent_media_type": "image/jpeg",
+      "sent_dimensions_px": [
+        900,
+        723
+      ],
+      "sent_bytes": 411586,
+      "sent_sha256": "cdd57cf3117ed464b566f27b21e8b7649ec466830e61479a4fef5417f3676cc1",
+      "resize_applied": false,
+      "compression_quality": 92
+    },
+    {
+      "magnification": "4x",
+      "source_filename": "<upload>",
+      "source_sha256": "c9b8d0b210819121e873ef059d7e044ca08986e65a522a58f5891da63a43a40e",
+      "source_dimensions_px": [
+        900,
+        723
+      ],
+      "sent_media_type": "image/jpeg",
+      "sent_dimensions_px": [
+        900,
+        723
+      ],
+      "sent_bytes": 321881,
+      "sent_sha256": "632f9a3a6a892731dbfdee57f0a0f8134835d385432c87dfb99b23ea4f5a8404",
+      "resize_applied": false,
+      "compression_quality": 92
+    },
+    {
+      "magnification": "10x",
+      "source_filename": "<upload>",
+      "source_sha256": "73301872af6e51acd020becf182f185c2cdf4fc7433605f5cee1ba83dc3cc0e8",
+      "source_dimensions_px": [
+        900,
+        722
+      ],
+      "sent_media_type": "image/jpeg",
+      "sent_dimensions_px": [
+        900,
+        722
+      ],
+      "sent_bytes": 209639,
+      "sent_sha256": "2229787adacd4dbee199c55ec95296d54e7d289217371d3d50c1e26719560170",
+      "resize_applied": false,
+      "compression_quality": 92
+    },
+    {
+      "magnification": "40x",
+      "source_filename": "<upload>",
+      "source_sha256": "a26574bf048c2573f32327bab315f4812f807361dcc9ce8cfd58f5e35591cff6",
+      "source_dimensions_px": [
+        460,
+        368
+      ],
+      "sent_media_type": "image/jpeg",
+      "sent_dimensions_px": [
+        460,
+        368
+      ],
+      "sent_bytes": 50849,
+      "sent_sha256": "21e785aa22f69e0b67a9f4d82f28a79a34c74743200632da4ac93a22059b0eb6",
+      "resize_applied": false,
+      "compression_quality": 92
+    }
+  ],
+  "retrieval": {
+    "subqueries_issued": [
+      "well differentiated squamous cell carcinoma characteristics keratinization",
+      "moderately differentiated squamous cell carcinoma features",
+      "poorly differentiated squamous cell carcinoma criteria atypia",
+      "keratin pearls horn cysts squamous cell carcinoma grading",
+      "cellular atypia pleomorphism squamous cell carcinoma differentiation",
+      "Broders grading system squamous cell carcinoma",
+      "WHO grading squamous cell carcinoma differentiation"
+    ],
+    "retrieved_chunk_ids_in_order": [
+      "doc_64",
+      "doc_9",
+      "doc_10",
+      "doc_13",
+      "doc_59",
+      "doc_2",
+      "doc_7",
+      "doc_59",
+      "doc_29",
+      "doc_4",
+      "doc_66",
+      "doc_65",
+      "doc_2",
+      "doc_71",
+      "doc_68",
+      "doc_64",
+      "doc_10",
+      "doc_13",
+      "doc_9",
+      "doc_27",
+      "doc_66",
+      "doc_65",
+      "doc_69",
+      "doc_27",
+      "doc_30",
+      "doc_7",
+      "doc_29",
+      "doc_10",
+      "doc_8",
+      "doc_9",
+      "doc_2",
+      "doc_7",
+      "doc_4",
+      "doc_59",
+      "doc_71"
+    ],
+    "context_block_sha256": "dc9886aec2978840c9f09c51b707df4ac48745c4664e391eb3267327e0cc0726",
+    "matches_manifest_context": false
+  },
+  "request": {
+    "model": "claude-opus-5",
+    "temperature": null,
+    "thinking": {
+      "type": "adaptive"
+    },
+    "effort": "high",
+    "max_tokens": 8000,
+    "schema_enforced": true,
+    "output_schema_sha256": "6b9a8db363ba2eeca7fd467edd8148fff42fa235c246263aba556ae6ac925a4b",
+    "system_text": "You are an expert dermatopathologist grading the differentiation of a cutaneous squamous cell carcinoma (CSCC) for a research study.\n\nYou will be given 4 images of the SAME lesion at different magnifications, in this order: whole_slide, 4x, 10x, 40x. Read them together: judge tumour architecture, depth and invasive pattern at low power, then keratinization and cytologic atypia at high power. Do not grade from one image alone.\n\nRetrieved literature context:\nTable II. Round 2 survey results regarding histologic features to be included in cutaneous squamous cell\ncarcinoma differentiation grading\nStatement Median DI\nKeratinization should be considered when assessing CSCC differentiation. 9.0 0.1\nKeratin pearls and horn cysts should be considered as keratinization. To a lesser\ndegree, intracellular keratin formation ( pink, glassy keratin within tumor\ncells) should be considered.\n9.0 0.1\nParakeratosis or keratin on top of the tumor alone should not be considered as\nkeratinization.\n8.0 0.1\nThe entire visible tumor should be used to assess keratinization, and attention\nshould be paid to the worst appearing portion of the tumor * (area with the\nleast degree of keratinization).\n9.0 0.1\nSome tumors have ‘‘biphasic’’ keratinization. For example, the majority of the\ntumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor * should\n\ncombined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles \ncombined Grades 1 and 2 ( > 50% differentiation) as well \ndifferentiated [22, 56], and another grouped Grades 3 and 4 \n(< 50% differentiated) as poorly differentiated [35].\nBălăşoiu (2008) utilized the Broders system but defined \ndifferentiation as the presence of mature, keratinizing cells \nwithin tumor islands [ 7]. Kanoko (2000) utilized Broders’ \nGrade 1–4 system, but offered specific definitions for each \ncategory; Grade 1 was defined as having prominent intercel-\nlular bridging and keratin pearl formation with mild anapla-\nsia. Grade 2 was defined as having keratin pearl formation \nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia\n\nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia \nwith no identifiable keratinization [ 42]. Weinberg (2007) \nsuggested defining “differentiated” in the Broders system as \nareas with keratinization and horn pearls [76]. Ch’ng (2013) \nfurther expanded on the definition of “differentiated” in the \nBroders system as areas with prominent keratinization and \nhorn pearls, a low level of pleomorphism, small nuclei with \nabundant cytoplasm, and strong cellular cohesion at the \ntumor borders [24]. McIlwee (2021) only considered kerati-\nnization in determining Broders grading [55].\nWorld Health Organization (WHO)\nSimilar to the Wick modification of the Broders system, the \nWHO system for grading CSCC differentiation includes \nwell differentiated (grade 1; <25% undifferentiated areas), \nmoderately differentiated (grade 2; 25–75% undifferentiated\n\nmay have mitotic figures but these should be primarily \nfound in the basal layer. Moderately differentiated tumors \nhave less prominent keratinization, typically restricted to \nindividual cells and scattered pearls and cysts; in addition, \nthere is a high mitotic burden and prominent pleomorphism. \nPoorly differentiated tumors may have sparse keratiniza -\ntion and/or intercellular bridging, but are overall difficult to \nidentify as squamous, and undifferentiated tumors are com-\npletely anaplastic [21, 72]. Two other articles in this review \nutilized this grading system [11, 45].\nCSCC histology consensus guidelines\nIn 2023, a group of dermatopathologists completed a Delphi \nprocess to determine consensus guidelines for reporting the \nhistology of actinic keratoses and CSCCs (Table 4) [25]. A \nminor focus of this study was grading CSCC differentiation. \nThe panel recommended a well, moderately, and poorly \ndifferentiated grading system; moving to 2 categories was\n\nMinneapolis, Minnesota n;D e p a r t m e n to f\nDermatology, Cleveland Clinic Lerner College\nof Medicine, Cleveland, Ohio o; Department of\nDermatology, Warren Alpert Medical School of\nBrown University, Providence, Rhode Island p;\nDepartment of Dermatology, Brigham and\nWomen’s Hospital, Boston, Massachusetts q;a n d\nTable I. Round 2 survey results regarding structure of cutaneous squamous cell carcinoma differentiation\ngrading\nStatement Median DI\nDifferentiation should be determined in all cases of CSCC, as long as there is adequate tissue\navailable to make this assessment. In specimens that do not contain enough tissue to make a\ndetermination (such as superficial shave biopsies or Mohs layers with minimal residual\ntumor), as much information as possible should be recorded about the histologic features\nrelevant to differentiation.\n9.0 0.1\nDermatopathologists, pathologists, and Mohs surgeons should all aim to consistently\n\ncomes including local recurrence, nodal metastasis, distant \nmetastasis, and disease-specific death. High risk factors \n \r Kathryn T. Shahwan\nKathryn.Shahwan@osumc.edu\n1 University of North Dakota, School of Medicine and Health \nSciences, Grand Forks, ND, USA\n2 The Ohio State University College of Medicine, Columbus, \nOH, USA\n3 Department of Dermatology, The Ohio State University \nMedical Center, 6700 University Blvd, Columbus,  \nOH 43016, USA\n4 Department of Dermatology, Altru Health System, Grand \nForks, Grand Forks, ND, USA\nAbstract\nPoor differentiation is strongly associated with poor outcomes in cutaneous squamous cell carcinoma (CSCC). In addi -\ntion, the National Comprehensive Cancer Network (NCCN) guidelines designate poorly differentiated tumors as “very \nhigh risk”. Despite its clear prognostic implications, there is no standardized grading system for CSCC differentiation in\n\nsquamous cell carcinoma were reviewed and summarized. \nA second PubMed search was performed to identify articles \non grading differentiation in non-cutaneous head and neck \nSCC; this included terms related to differentiation, histo -\nlogic grade, and oropharyngeal SCC.\nLiterature review: differentiation grading systems \nin CSCC\nBroders\nThe Broders system [ 16, 17] (Table 1) was used in the \nAJCC-7 staging manual [ 28], and was also presented in \nmany of the reviewed articles [ 6, 7, 14, 19, 20, 22–24, 31, \n32, 35, 37, 38, 42, 43, 46, 47, 52, 55, 56, 61–63, 69, 76]. \nThis system was first described in 1921 and grades CSCCs \n1–4 based on the percentage of the tumor that is differenti -\nated. Grade 1 tumors are 75% or more differentiated, Grade \n2 tumors are 50–75% differentiated, Grade 3 tumors are \n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion\n\nMinneapolis, Minnesota n;D e p a r t m e n to f\nDermatology, Cleveland Clinic Lerner College\nof Medicine, Cleveland, Ohio o; Department of\nDermatology, Warren Alpert Medical School of\nBrown University, Providence, Rhode Island p;\nDepartment of Dermatology, Brigham and\nWomen’s Hospital, Boston, Massachusetts q;a n d\nTable I. Round 2 survey results regarding structure of cutaneous squamous cell carcinoma differentiation\ngrading\nStatement Median DI\nDifferentiation should be determined in all cases of CSCC, as long as there is adequate tissue\navailable to make this assessment. In specimens that do not contain enough tissue to make a\ndetermination (such as superficial shave biopsies or Mohs layers with minimal residual\ntumor), as much information as possible should be recorded about the histologic features\nrelevant to differentiation.\n9.0 0.1\nDermatopathologists, pathologists, and Mohs surgeons should all aim to consistently\n\n15. Broders AC (1920) Squamous cell epithelioma of the lip: a study \nof five hundred and thirty-seven cases. JAMA 74(10):656–664\n16. Broders AC (1921) Squamous cell epithelioma of the skin: \na study of 256 cases. Ann Surg 73(2):141–160. https://doi.\norg/10.1097/00000658-192102000-00001\n17. Broders AC (1932) Practical points on the microscopic grading of \ncarcinoma. NY State J Med 32:667–671\n18. Bryne M, Koppang HS, Lilleng R et al (1989) New malignancy \ngrading is a better prognostic indicator than Broders’ grading in \noral squamous cell carcinomas. J Oral Pathol Med 18(8):432–\n437. https://doi.org/10.1111/j.1600-0714.1989.tb01339.x\n19. Bukhari MH, Niazi S, Chaudhry NA (2009) Relationship of \nimmunohistochemistry scores of altered p53 protein expression \nin relation to patient’s habits and histological grades and stages of \nsquamous cell carcinoma. J Cutan Pathol 36(3):342–349. https://\ndoi.org/10.1111/j.1600-0560.2008.01040.x\n20. Burton KA, Ashack KA, Khachemoune A (2016) Cutane -\n\narticles and histology textbook excerpts. CSCC grading systems that were identified and summarized include the histori -\ncal Broders system, the World Health Organization system, the College of American Pathologists’ system, and a system \ndescribed by a 2023 Delphi consensus panel of dermatopathologists.\nKeywords Cutaneous squamous cell carcinoma · Differentiation · Histologic grade · Staging · Outcomes\nReceived: 23 May 2024 / Revised: 23 May 2024 / Accepted: 15 June 2024 / Published online: 27 June 2024\n© The Author(s), under exclusive licence to Springer-Verlag GmbH Germany, part of Springer Nature 2024\nGrading differentiation in cutaneous squamous cell carcinoma: a \nreview of the literature\nClaire Diede1 · Trent Walker2 · David R. Carr3 · Kathryn T. Shahwan1,3,4\n1 3\n\ndifferentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1\nThe entire visible tumor should be used to assess cellular atypia, and careful\nattention should be paid to the worst appearing portion of the tumor *.\n9.0 0.1\nSome tumors may have ‘‘biphasic’’ cellular atypia. For example, the majority of\nthe tumor may have minimal cellular atypia, with a minor focus that has\nprominent cellular atypia. The worst appearing portion of the tumor * should\nbe considered when assessing cellular atypia. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.3\nTumor architecture should be considered when assessing CSCC differentiation. 8.0 0.3\nThe entire visible tumor should be used to assess tumor architecture, and\nattention should be paid to the worst appearing portion of the tumor *.\n9.0 0.1\n\ntumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor * should\nbe considered when assessing keratinization. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.1\nCellular atypia should be considered when assessing CSCC differentiation. 9.0 0.3\nPleomorphism (variability in size and shape of tumor cells and their nuclei)\nshould be considered when assessing cellular atypia.\n9.0 0.3\nPresence of spindled keratinocytes is an important feature of cellular atypia that\nshould be considered when assessing CSCC differentiation.\n9.0 0.1\nNumber of mitotic figures should not be considered when assessing CSCC\ndifferentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1\n\ncomes including local recurrence, nodal metastasis, distant \nmetastasis, and disease-specific death. High risk factors \n \r Kathryn T. Shahwan\nKathryn.Shahwan@osumc.edu\n1 University of North Dakota, School of Medicine and Health \nSciences, Grand Forks, ND, USA\n2 The Ohio State University College of Medicine, Columbus, \nOH, USA\n3 Department of Dermatology, The Ohio State University \nMedical Center, 6700 University Blvd, Columbus,  \nOH 43016, USA\n4 Department of Dermatology, Altru Health System, Grand \nForks, Grand Forks, ND, USA\nAbstract\nPoor differentiation is strongly associated with poor outcomes in cutaneous squamous cell carcinoma (CSCC). In addi -\ntion, the National Comprehensive Cancer Network (NCCN) guidelines designate poorly differentiated tumors as “very \nhigh risk”. Despite its clear prognostic implications, there is no standardized grading system for CSCC differentiation in\n\n2. Diede C, Walker T, Carr DR, Shahwan KT. Grading differenti-\nation in cutaneous squamous cell carcinoma: a review of the\nliterature. Arch Dermatol Res . 2024;316(7):434 .\n3. Nash J, Shahwan KT, Chung C, et al. Grading of differentiation\nin cutaneous squamous cell carcinoma: evaluation of inter-\nrater and intrarater reliability. J Am Acad Dermatol . 2022;87(4):\n895-897.\n4. Prezzano JC, Scott GA, Lambert Smith F, Mannava KA,\nIbrahim SF. Concordance of squamous cell carcinoma histo-\nlogic grading among dermatopathologists and Mohs sur-\ngeons. Dermatol Surg . 2021;47(11):1433-1437 .\n5. Fitch K, Bernstein SJ, Aguilar MD, et al. The RAND/UCLA\nAppropriateness Method User’s Manual. RAND; 2001 .\nhttps://doi.org/10.1016/j.jaad.2025.05.003\nJA M ACAD DERMATOL\nn 2025\n4 Brief Report\n\n6.0 0.7\nDesmoplasia ( formation of a fibrotic stroma around the tumor cells) should be\nconsidered in assessing CSCC differentiation.\n7.0 0.7\nIf a tumor cannot be identified as CSCC without immunohistochemical staining,\nit should be considered poorly differentiated.\n9.0 0.0\nMedian appropriateness rating (1-3 ¼ not appropriate, 4-6 ¼ uncertain, 7-9 ¼ appropriate) and disagreement index (DI ¼ interpercentile\nrange [IPR]/interpercentile range adjusted for symmetry [IPRAS]; DI of greater than or equal to 1 represents lack of consensus).\nCSCC, Cutaneous squamous cell carcinoma; DI, disagreement index.\n*Least differentiated appearing portion of the tumor.\nJA M ACAD DERMATOL\nVOLUME jj,N UMBER j\nBrief Report 3\n\nTable II. Round 2 survey results regarding histologic features to be included in cutaneous squamous cell\ncarcinoma differentiation grading\nStatement Median DI\nKeratinization should be considered when assessing CSCC differentiation. 9.0 0.1\nKeratin pearls and horn cysts should be considered as keratinization. To a lesser\ndegree, intracellular keratin formation ( pink, glassy keratin within tumor\ncells) should be considered.\n9.0 0.1\nParakeratosis or keratin on top of the tumor alone should not be considered as\nkeratinization.\n8.0 0.1\nThe entire visible tumor should be used to assess keratinization, and attention\nshould be paid to the worst appearing portion of the tumor * (area with the\nleast degree of keratinization).\n9.0 0.1\nSome tumors have ‘‘biphasic’’ keratinization. For example, the majority of the\ntumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor * should\n\nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia \nwith no identifiable keratinization [ 42]. Weinberg (2007) \nsuggested defining “differentiated” in the Broders system as \nareas with keratinization and horn pearls [76]. Ch’ng (2013) \nfurther expanded on the definition of “differentiated” in the \nBroders system as areas with prominent keratinization and \nhorn pearls, a low level of pleomorphism, small nuclei with \nabundant cytoplasm, and strong cellular cohesion at the \ntumor borders [24]. McIlwee (2021) only considered kerati-\nnization in determining Broders grading [55].\nWorld Health Organization (WHO)\nSimilar to the Wick modification of the Broders system, the \nWHO system for grading CSCC differentiation includes \nwell differentiated (grade 1; <25% undifferentiated areas), \nmoderately differentiated (grade 2; 25–75% undifferentiated\n\nmay have mitotic figures but these should be primarily \nfound in the basal layer. Moderately differentiated tumors \nhave less prominent keratinization, typically restricted to \nindividual cells and scattered pearls and cysts; in addition, \nthere is a high mitotic burden and prominent pleomorphism. \nPoorly differentiated tumors may have sparse keratiniza -\ntion and/or intercellular bridging, but are overall difficult to \nidentify as squamous, and undifferentiated tumors are com-\npletely anaplastic [21, 72]. Two other articles in this review \nutilized this grading system [11, 45].\nCSCC histology consensus guidelines\nIn 2023, a group of dermatopathologists completed a Delphi \nprocess to determine consensus guidelines for reporting the \nhistology of actinic keratoses and CSCCs (Table 4) [25]. A \nminor focus of this study was grading CSCC differentiation. \nThe panel recommended a well, moderately, and poorly \ndifferentiated grading system; moving to 2 categories was\n\ncombined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles \ncombined Grades 1 and 2 ( > 50% differentiation) as well \ndifferentiated [22, 56], and another grouped Grades 3 and 4 \n(< 50% differentiated) as poorly differentiated [35].\nBălăşoiu (2008) utilized the Broders system but defined \ndifferentiation as the presence of mature, keratinizing cells \nwithin tumor islands [ 7]. Kanoko (2000) utilized Broders’ \nGrade 1–4 system, but offered specific definitions for each \ncategory; Grade 1 was defined as having prominent intercel-\nlular bridging and keratin pearl formation with mild anapla-\nsia. Grade 2 was defined as having keratin pearl formation \nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia\n\nnoma. Rom J Morphol Embryol 49(2):211–214\n8. Barksdale SK, O’Connor N, Barnhill R (1997) Prognostic factors \nfor cutaneous squamous cell and basal cell carcinoma. Determi -\nnants of risk of recurrence, metastasis, and development of sub -\nsequent skin cancers. Surg Oncol Clin N Am 6(3):625–638\n9. Barnes L, Eveson JW, Reichart P, Kleihues P, Sobin LH et al (eds) \n(2005) World health organization classification of tumours, 3rd \nedn. IARC, Lyon\n10. Barzilai A, Lyakhovitsky A, Trau H et al (2007) Expression of \np53 in the evolution of squamous cell carcinoma: correlation with \nthe histology of the lesion. J Am Acad Dermatol 57(4):669–676\n11. Berger F, Geddert H, Faller G, Werner M, Dimmler A (2014) \nPattern of TGFbeta receptor 1 expression differs between kras-\nmutated keratoacanthomas and squamous cell carcinomas of the \nskin. Pathol Res Pract 210(9):596–602. https://doi.org/10.1016/j.\nprp.2014.05.006\n12. Brandwein-Gensler M, Teixeira MS, Lewis CM et al (2005)\n\ndifferentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1\nThe entire visible tumor should be used to assess cellular atypia, and careful\nattention should be paid to the worst appearing portion of the tumor *.\n9.0 0.1\nSome tumors may have ‘‘biphasic’’ cellular atypia. For example, the majority of\nthe tumor may have minimal cellular atypia, with a minor focus that has\nprominent cellular atypia. The worst appearing portion of the tumor * should\nbe considered when assessing cellular atypia. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.3\nTumor architecture should be considered when assessing CSCC differentiation. 8.0 0.3\nThe entire visible tumor should be used to assess tumor architecture, and\nattention should be paid to the worst appearing portion of the tumor *.\n9.0 0.1\n\ntumor may have sparse or absent keratinization, with a minor focus that has\nprominent keratinization. The worst appearing portion of the tumor * should\nbe considered when assessing keratinization. It is also helpful to describe\nboth portions of the tumor and an approximation of the percentage of\ntumor comprised by each.\n8.0 0.1\nCellular atypia should be considered when assessing CSCC differentiation. 9.0 0.3\nPleomorphism (variability in size and shape of tumor cells and their nuclei)\nshould be considered when assessing cellular atypia.\n9.0 0.3\nPresence of spindled keratinocytes is an important feature of cellular atypia that\nshould be considered when assessing CSCC differentiation.\n9.0 0.1\nNumber of mitotic figures should not be considered when assessing CSCC\ndifferentiation, as it is not a reliable measure of cellular atypia in CSCC and is\ndifficult and time consuming to measure in routine clinical practice.\n8.0 0.1\n\nDepartment of Dermatology, Texas Tech Univer-\nsity Health Sciences Center, Lubbock, Texas. r\nFunding sources: This study was funded by a\nresearch grant from the Dermatology\nFoundation.\nPatient consent: N/a.\nIRB approval status: Reviewed and approved by the\nOhio State University Institutional Review Board;\napproval #2023C0129.\nKey words: cellular atypia; cutaneous squamous\ncell carcinoma; differentiation; histologic grade;\nkeratinization; modified Delphi panel; tumor\narchitecture.\nCorrespondence to: Kathryn T. Shahwan, MD,\nDepartment of Dermatology, The Ohio State\nUniversity Medical Center, 6700 University Blvd,\nDublin, Ohio 43016\nE-mail: Kathryn.Shahwan@osumc.edu\nConﬂicts of interest\nSean R. Christensen has served as a consultant for Castle\nBiosciences; Emily S. Ruiz serves as a consultant for\nRegeneron Inc., Checkpoint Therapeutic, Feldan\nPharmaceuticals, and Merck Pharmaceuticals. She serves\nas a Principal Investigator/Co-Investigator for the\n\nnoma. Rom J Morphol Embryol 49(2):211–214\n8. Barksdale SK, O’Connor N, Barnhill R (1997) Prognostic factors \nfor cutaneous squamous cell and basal cell carcinoma. Determi -\nnants of risk of recurrence, metastasis, and development of sub -\nsequent skin cancers. Surg Oncol Clin N Am 6(3):625–638\n9. Barnes L, Eveson JW, Reichart P, Kleihues P, Sobin LH et al (eds) \n(2005) World health organization classification of tumours, 3rd \nedn. IARC, Lyon\n10. Barzilai A, Lyakhovitsky A, Trau H et al (2007) Expression of \np53 in the evolution of squamous cell carcinoma: correlation with \nthe histology of the lesion. J Am Acad Dermatol 57(4):669–676\n11. Berger F, Geddert H, Faller G, Werner M, Dimmler A (2014) \nPattern of TGFbeta receptor 1 expression differs between kras-\nmutated keratoacanthomas and squamous cell carcinomas of the \nskin. Pathol Res Pract 210(9):596–602. https://doi.org/10.1016/j.\nprp.2014.05.006\n12. Brandwein-Gensler M, Teixeira MS, Lewis CM et al (2005)\n\nsquamous cell carcinoma. J Cutan Pathol 36(3):342–349. https://\ndoi.org/10.1111/j.1600-0560.2008.01040.x\n20. Burton KA, Ashack KA, Khachemoune A (2016) Cutane -\nous squamous cell carcinoma: a review of high-risk and meta -\nstatic disease. Am J Clin Dermatol 17(5):491–508. https://doi.\norg/10.1007/s40257-016-0207-3\n21. Calonje E, Brenn T, Lazar AJ, Billings SD (2020) Tumors of the \nsurface epithelium. In: Calonje E, Brenn T, Lazar AJ, Billings SD \n(eds) McKee’s pathology of the skin with clinical correlations, \n5th edn. Elsevier Mosby, Philadelphia\n22. Campoli M, Brodland DG, Zitelli J (2014) A prospective evalua-\ntion of the clinical, histologic, and therapeutic variables associated \n2 categorizations. A dichotomous system would be easier \nto define, and may improve reliability. However, there are \ntwo major concerns with a dichotomous system. First, a \ndichotomous system has not yet been shown to correlate to \npoor CSCC outcomes. Second, moderate differentiation is\n\nsquamous cell carcinoma were reviewed and summarized. \nA second PubMed search was performed to identify articles \non grading differentiation in non-cutaneous head and neck \nSCC; this included terms related to differentiation, histo -\nlogic grade, and oropharyngeal SCC.\nLiterature review: differentiation grading systems \nin CSCC\nBroders\nThe Broders system [ 16, 17] (Table 1) was used in the \nAJCC-7 staging manual [ 28], and was also presented in \nmany of the reviewed articles [ 6, 7, 14, 19, 20, 22–24, 31, \n32, 35, 37, 38, 42, 43, 46, 47, 52, 55, 56, 61–63, 69, 76]. \nThis system was first described in 1921 and grades CSCCs \n1–4 based on the percentage of the tumor that is differenti -\nated. Grade 1 tumors are 75% or more differentiated, Grade \n2 tumors are 50–75% differentiated, Grade 3 tumors are \n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion\n\n15. Broders AC (1920) Squamous cell epithelioma of the lip: a study \nof five hundred and thirty-seven cases. JAMA 74(10):656–664\n16. Broders AC (1921) Squamous cell epithelioma of the skin: \na study of 256 cases. Ann Surg 73(2):141–160. https://doi.\norg/10.1097/00000658-192102000-00001\n17. Broders AC (1932) Practical points on the microscopic grading of \ncarcinoma. NY State J Med 32:667–671\n18. Bryne M, Koppang HS, Lilleng R et al (1989) New malignancy \ngrading is a better prognostic indicator than Broders’ grading in \noral squamous cell carcinomas. J Oral Pathol Med 18(8):432–\n437. https://doi.org/10.1111/j.1600-0714.1989.tb01339.x\n19. Bukhari MH, Niazi S, Chaudhry NA (2009) Relationship of \nimmunohistochemistry scores of altered p53 protein expression \nin relation to patient’s habits and histological grades and stages of \nsquamous cell carcinoma. J Cutan Pathol 36(3):342–349. https://\ndoi.org/10.1111/j.1600-0560.2008.01040.x\n20. Burton KA, Ashack KA, Khachemoune A (2016) Cutane -\n\nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia \nwith no identifiable keratinization [ 42]. Weinberg (2007) \nsuggested defining “differentiated” in the Broders system as \nareas with keratinization and horn pearls [76]. Ch’ng (2013) \nfurther expanded on the definition of “differentiated” in the \nBroders system as areas with prominent keratinization and \nhorn pearls, a low level of pleomorphism, small nuclei with \nabundant cytoplasm, and strong cellular cohesion at the \ntumor borders [24]. McIlwee (2021) only considered kerati-\nnization in determining Broders grading [55].\nWorld Health Organization (WHO)\nSimilar to the Wick modification of the Broders system, the \nWHO system for grading CSCC differentiation includes \nwell differentiated (grade 1; <25% undifferentiated areas), \nmoderately differentiated (grade 2; 25–75% undifferentiated\n\n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion \nof cells with large, dark, single nucleoli should be consid -\nered [16, 17]. Broders also stated that if there is difficulty \nchoosing between 2 grades, to select the higher grade [ 17]. \nBroders’ system has been criticized for its vagueness and \nlack of simplicity [23, 62].\nClassically, Grade 1 tumors corresponded to well dif -\nferentiated, Grade 2 to moderately differentiated, Grade 3 \nto poorly differentiated, and Grade 4 to undifferentiated [ 6, \n42]. In 1990, Wick suggested in the textbook “Pathology \nof the Skin” that Broders Grade 1 be designated as well \ndifferentiated, Grades 2 and 3 (25–75% differentiated) be \ncombined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles\n\ncombined as moderately differentiated, and Grade 4 be con-\nsidered poorly differentiated [ 77]; several articles utilized \nthis modified grading [ 37, 46, 55, 62, 63]. Other articles \ncombined Grades 1 and 2 ( > 50% differentiation) as well \ndifferentiated [22, 56], and another grouped Grades 3 and 4 \n(< 50% differentiated) as poorly differentiated [35].\nBălăşoiu (2008) utilized the Broders system but defined \ndifferentiation as the presence of mature, keratinizing cells \nwithin tumor islands [ 7]. Kanoko (2000) utilized Broders’ \nGrade 1–4 system, but offered specific definitions for each \ncategory; Grade 1 was defined as having prominent intercel-\nlular bridging and keratin pearl formation with mild anapla-\nsia. Grade 2 was defined as having keratin pearl formation \nas well as single cell keratin production. Grade 3 was char -\nacterized by sparse single cell keratin production and sig -\nnificant anaplasia, and Grade 4 had significant anaplasia\n\ncomes including local recurrence, nodal metastasis, distant \nmetastasis, and disease-specific death. High risk factors \n \r Kathryn T. Shahwan\nKathryn.Shahwan@osumc.edu\n1 University of North Dakota, School of Medicine and Health \nSciences, Grand Forks, ND, USA\n2 The Ohio State University College of Medicine, Columbus, \nOH, USA\n3 Department of Dermatology, The Ohio State University \nMedical Center, 6700 University Blvd, Columbus,  \nOH 43016, USA\n4 Department of Dermatology, Altru Health System, Grand \nForks, Grand Forks, ND, USA\nAbstract\nPoor differentiation is strongly associated with poor outcomes in cutaneous squamous cell carcinoma (CSCC). In addi -\ntion, the National Comprehensive Cancer Network (NCCN) guidelines designate poorly differentiated tumors as “very \nhigh risk”. Despite its clear prognostic implications, there is no standardized grading system for CSCC differentiation in\n\nsquamous cell carcinoma were reviewed and summarized. \nA second PubMed search was performed to identify articles \non grading differentiation in non-cutaneous head and neck \nSCC; this included terms related to differentiation, histo -\nlogic grade, and oropharyngeal SCC.\nLiterature review: differentiation grading systems \nin CSCC\nBroders\nThe Broders system [ 16, 17] (Table 1) was used in the \nAJCC-7 staging manual [ 28], and was also presented in \nmany of the reviewed articles [ 6, 7, 14, 19, 20, 22–24, 31, \n32, 35, 37, 38, 42, 43, 46, 47, 52, 55, 56, 61–63, 69, 76]. \nThis system was first described in 1921 and grades CSCCs \n1–4 based on the percentage of the tumor that is differenti -\nated. Grade 1 tumors are 75% or more differentiated, Grade \n2 tumors are 50–75% differentiated, Grade 3 tumors are \n25–50% differentiated, and Grade 4 tumors are 0–25% dif -\nferentiated. Broders did not specify a definition for “differ -\nentiated”, but noted that mitotic burden and the proportion\n\narticles and histology textbook excerpts. CSCC grading systems that were identified and summarized include the histori -\ncal Broders system, the World Health Organization system, the College of American Pathologists’ system, and a system \ndescribed by a 2023 Delphi consensus panel of dermatopathologists.\nKeywords Cutaneous squamous cell carcinoma · Differentiation · Histologic grade · Staging · Outcomes\nReceived: 23 May 2024 / Revised: 23 May 2024 / Accepted: 15 June 2024 / Published online: 27 June 2024\n© The Author(s), under exclusive licence to Springer-Verlag GmbH Germany, part of Springer Nature 2024\nGrading differentiation in cutaneous squamous cell carcinoma: a \nreview of the literature\nClaire Diede1 · Trent Walker2 · David R. Carr3 · Kathryn T. Shahwan1,3,4\n1 3\n\nMinneapolis, Minnesota n;D e p a r t m e n to f\nDermatology, Cleveland Clinic Lerner College\nof Medicine, Cleveland, Ohio o; Department of\nDermatology, Warren Alpert Medical School of\nBrown University, Providence, Rhode Island p;\nDepartment of Dermatology, Brigham and\nWomen’s Hospital, Boston, Massachusetts q;a n d\nTable I. Round 2 survey results regarding structure of cutaneous squamous cell carcinoma differentiation\ngrading\nStatement Median DI\nDifferentiation should be determined in all cases of CSCC, as long as there is adequate tissue\navailable to make this assessment. In specimens that do not contain enough tissue to make a\ndetermination (such as superficial shave biopsies or Mohs layers with minimal residual\ntumor), as much information as possible should be recorded about the histologic features\nrelevant to differentiation.\n9.0 0.1\nDermatopathologists, pathologists, and Mohs surgeons should all aim to consistently\n\n2. Diede C, Walker T, Carr DR, Shahwan KT. Grading differenti-\nation in cutaneous squamous cell carcinoma: a review of the\nliterature. Arch Dermatol Res . 2024;316(7):434 .\n3. Nash J, Shahwan KT, Chung C, et al. Grading of differentiation\nin cutaneous squamous cell carcinoma: evaluation of inter-\nrater and intrarater reliability. J Am Acad Dermatol . 2022;87(4):\n895-897.\n4. Prezzano JC, Scott GA, Lambert Smith F, Mannava KA,\nIbrahim SF. Concordance of squamous cell carcinoma histo-\nlogic grading among dermatopathologists and Mohs sur-\ngeons. Dermatol Surg . 2021;47(11):1433-1437 .\n5. Fitch K, Bernstein SJ, Aguilar MD, et al. The RAND/UCLA\nAppropriateness Method User’s Manual. RAND; 2001 .\nhttps://doi.org/10.1016/j.jaad.2025.05.003\nJA M ACAD DERMATOL\nn 2025\n4 Brief Report\n\n### YOU MUST COMMIT\n\nEvery case gets exactly one of the three grades. Declining, deferring, or answering that the case cannot be assessed is not available to you. If the material is poor, grade it anyway on what you can see, set specimen_adequacy to \"limited\", lower confidence_level, and say in additional_observations precisely what you could not assess and what you would need in order to. A committed grade with your reservations attached is what is wanted.\n\n### ASSESS\n\n- Keratinization: keratin pearls, horn cysts, intracellular keratin. More keratinization means better differentiated.\n- Cellular atypia: pleomorphism, nuclear abnormalities. More atypia means more poorly differentiated.\n- Architecture: organised and pushing versus infiltrative and disorganised.\n- Squamous maturation: the gradient from basal to keratinised cells.\n- Mitotic activity: low, moderate or high.\n\n### GRADING CRITERIA\n\n- Well differentiated (Broders 1): abundant keratinization, keratin pearls present, minimal atypia, organised architecture.\n- Moderately differentiated (Broders 2-3): some keratinization, moderate atypia.\n- Poorly differentiated (Broders 4): minimal or absent keratinization, high atypia, infiltrative, basaloid.\n\nReport broders_grade as your best placement on the 1-4 scale, consistent with primary_grade.\n\n### SUBTYPE, DEPTH AND HIGH-RISK FEATURES\n\nName the histologic subtype. Report depth_of_invasion as the deepest level you can see. In high_risk_features list every feature present from: perineural invasion, lymphovascular invasion, invasion beyond subcutaneous fat, tumour thickness over 6 mm, desmoplastic subtype, poorly differentiated, bone invasion; or none_identified. These are what move a tumour between stages, so say what you can and cannot assess at these magnifications in additional_observations rather than guessing.\n\n### DIFFERENTIAL AND ANCILLARY STUDIES\n\nList the two to four diagnoses you actively considered in differential_diagnosis, most likely first: for a keratinizing tumour that usually includes keratoacanthoma and pseudoepitheliomatous hyperplasia; for a poorly differentiated one, spindle-cell or basaloid mimics including melanoma, atypical fibroxanthoma and basal cell carcinoma. In recommended_ancillary_studies list what you would order to resolve it at sign-out; use \"none\" only when you would sign out on H&E alone.\n\n### RULES\n\n1. Choose one of the three grades. Do not return unknown.\n2. Minimal or absent keratinization AND high atypia means poorly differentiated.\n3. Abundant keratinization AND minimal atypia means well differentiated.\n4. For a mixed-grade tumour, report the worst (least differentiated) component.\n5. In magnification_evidence, cite at least one finding per magnification, naming only what that power can actually show. Keratin pearls are assessable at 4x and 10x; nuclear detail and mitoses need 40x; perineural invasion needs 10x-40x and a nerve in the field.\n6. Grade what is in front of you. Do not hedge to the middle category to avoid committing, and do not use \"limited\" adequacy as a way of not answering. Uncertainty belongs in confidence_level and additional_observations, never in the grade.",
+    "system_sha256": "3616335050a4d81c2107415c911160264d0cb2d8308bd1078b958f17259d1668",
+    "user_text": "Grade the cutaneous squamous cell carcinoma shown in the images above according to the instructions you were given. Return only the JSON object.",
+    "user_sha256": "9e9daaf3d91405075aea3abf58dcc416341ea83cf9fb1d70e628ad7dfc8fd353",
+    "message_structure": [
+      {
+        "role": "system",
+        "blocks": [
+          {
+            "type": "text",
+            "role": "scaffold",
+            "cached": true,
+            "sha256": "3616335050a4d81c2107415c911160264d0cb2d8308bd1078b958f17259d1668"
+          }
+        ]
+      },
+      {
+        "role": "user",
+        "blocks": [
+          {
+            "type": "text",
+            "role": "caption",
+            "magnification": "whole_slide",
+            "sha256": "49eb0d33beb152ce8f571bf0eaf0caf59563b28e52c730f11560a3f380923e4e"
+          },
+          {
+            "type": "image",
+            "magnification": "whole_slide",
+            "media_type": "image/jpeg",
+            "sha256": "cdd57cf3117ed464b566f27b21e8b7649ec466830e61479a4fef5417f3676cc1"
+          },
+          {
+            "type": "text",
+            "role": "caption",
+            "magnification": "4x",
+            "sha256": "0f61a1a6bfec05acea6f228470e69c3d4b17acfa08de0c756cc973711faa72a9"
+          },
+          {
+            "type": "image",
+            "magnification": "4x",
+            "media_type": "image/jpeg",
+            "sha256": "632f9a3a6a892731dbfdee57f0a0f8134835d385432c87dfb99b23ea4f5a8404"
+          },
+          {
+            "type": "text",
+            "role": "caption",
+            "magnification": "10x",
+            "sha256": "97ffb0c4cf4541b91a4343e5d359f31b7c593baa71f02795ae12f7b24676a62b"
+          },
+          {
+            "type": "image",
+            "magnification": "10x",
+            "media_type": "image/jpeg",
+            "sha256": "2229787adacd4dbee199c55ec95296d54e7d289217371d3d50c1e26719560170"
+          },
+          {
+            "type": "text",
+            "role": "caption",
+            "magnification": "40x",
+            "sha256": "4134482d5ed0336984b9f4cc45285ec94b08364b717f1fddef08487eaa2e397e"
+          },
+          {
+            "type": "image",
+            "magnification": "40x",
+            "media_type": "image/jpeg",
+            "sha256": "21e785aa22f69e0b67a9f4d82f28a79a34c74743200632da4ac93a22059b0eb6"
+          },
+          {
+            "type": "text",
+            "role": "instruction",
+            "sha256": "9e9daaf3d91405075aea3abf58dcc416341ea83cf9fb1d70e628ad7dfc8fd353"
+          }
+        ]
+      }
+    ],
+    "attempt": 1,
+    "prior_attempt_errors": []
+  },
+  "response": {
+    "api_request_id": "msg_stub",
+    "model_returned": "stub",
+    "stop_reason": "end_turn",
+    "stop_details": null,
+    "usage": {
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cache_read_input_tokens": 0,
+      "cache_creation_input_tokens": 0
+    },
+    "latency_ms": 1,
+    "raw_text": "{\"primary_grade\": \"Moderately Differentiated\", \"broders_grade\": 2, \"specimen_adequacy\": \"adequate\", \"histologic_subtype\": \"conventional\", \"depth_of_invasion\": \"reticular_dermis\", \"high_risk_features\": [\"none_identified\"], \"confidence_level\": \"Medium\", \"keratinization_present\": true, \"atypia_level\": \"moderate\", \"differential_diagnosis\": [\"keratoacanthoma\", \"pseudoepitheliomatous hyperplasia\"], \"recommended_ancillary_studies\": [\"none\"], \"key_features\": [\"STUB RESPONSE - no image was read\"], \"additional_observations\": \"STUB RESPONSE. DERMPATH_STUB_API is set, so no API call was made and no image was examined. Not a grade.\", \"magnification_evidence\": [{\"magnification\": \"whole_slide\", \"finding\": \"STUB RESPONSE - no image was read\"}, {\"magnification\": \"4x\", \"finding\": \"STUB RESPONSE - no image was read\"}, {\"magnification\": \"10x\", \"finding\": \"STUB RESPONSE - no image was read\"}, {\"magnification\": \"40x\", \"finding\": \"STUB RESPONSE - no image was read\"}]}"
+  },
+  "failure": null,
+  "parsing": {
+    "strategy_used": "structured_output",
+    "fallback_invoked": false,
+    "parse_errors": [],
+    "parsed": {
+      "primary_grade": "Moderately Differentiated",
+      "broders_grade": 2,
+      "specimen_adequacy": "adequate",
+      "histologic_subtype": "conventional",
+      "depth_of_invasion": "reticular_dermis",
+      "high_risk_features": [
+        "none_identified"
+      ],
+      "confidence_level": "Medium",
+      "keratinization_present": true,
+      "atypia_level": "moderate",
+      "differential_diagnosis": [
+        "keratoacanthoma",
+        "pseudoepitheliomatous hyperplasia"
+      ],
+      "recommended_ancillary_studies": [
+        "none"
+      ],
+      "key_features": [
+        "STUB RESPONSE - no image was read"
+      ],
+      "magnification_evidence": [
+        {
+          "magnification": "whole_slide",
+          "finding": "STUB RESPONSE - no image was read"
+        },
+        {
+          "magnification": "4x",
+          "finding": "STUB RESPONSE - no image was read"
+        },
+        {
+          "magnification": "10x",
+          "finding": "STUB RESPONSE - no image was read"
+        },
+        {
+          "magnification": "40x",
+          "finding": "STUB RESPONSE - no image was read"
+        }
+      ],
+      "additional_observations": "STUB RESPONSE. DERMPATH_STUB_API is set, so no API call was made and no image was examined. Not a grade.",
+      "consistency_flags": [],
+      "internally_consistent": true
+    }
+  },
+  "errors": []
+}
