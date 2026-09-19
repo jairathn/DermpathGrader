@@ -37,6 +37,7 @@ Behaviour worth stating explicitly
 from __future__ import annotations
 
 import json
+import os
 import random
 import time
 from dataclasses import dataclass, field
@@ -110,6 +111,103 @@ class GradingResponse:
             "category": getattr(details, "category", None),
             "explanation": getattr(details, "explanation", None),
         }
+
+
+# ── stub mode ────────────────────────────────────────────────────────
+
+STUB_ENV_VAR = "DERMPATH_STUB_API"
+
+
+def stub_enabled() -> bool:
+    """True when grading calls are answered locally instead of by the API.
+
+    Set DERMPATH_STUB_API=1 to exercise the whole app - uploads, the
+    four-image contract, logging, the report, the downloads - without
+    spending anything or needing a key. It is opt-in, never a fallback:
+    nothing turns it on because a key is missing, because a run that
+    silently produced canned grades would be indistinguishable from a
+    real one in the logs.
+
+    Every stubbed log records `"model_returned": "stub"`, and the app
+    shows a banner, so a stubbed result cannot be mistaken for a grade.
+    """
+    return os.environ.get(STUB_ENV_VAR, "").strip().lower() in ("1", "true", "yes")
+
+
+_STUB_MELANOCYTIC = {
+    "mpath_dx_v2_class": "II", "lesion_category": "dysplastic_nevus",
+    "specimen_adequacy": "adequate", "dysplasia_grade": "severe",
+    "melanoma_subtype": "not_applicable",
+    "melanoma_histologic_subtype": "not_applicable",
+    "breslow_estimate_mm": None, "ulceration_present": None,
+    "mitoses_per_mm2": None, "confidence_level": "Medium",
+    "differential_diagnosis": ["dysplastic nevus with high-grade atypia",
+                               "melanoma in situ"],
+    "recommended_ancillary_studies": ["PRAME", "Melan-A/MART-1"],
+    "architectural_features": ["STUB RESPONSE - no image was read"],
+    "cytological_features": ["STUB RESPONSE - no image was read"],
+    "grading_rationale": ("STUB RESPONSE. DERMPATH_STUB_API is set, so no "
+                          "API call was made and no image was examined. "
+                          "This value is fixed and carries no diagnostic "
+                          "meaning whatsoever."),
+    "clinical_significance": "STUB RESPONSE - not a grade.",
+}
+
+_STUB_CSCC = {
+    "primary_grade": "Moderately Differentiated", "broders_grade": 2,
+    "specimen_adequacy": "adequate", "histologic_subtype": "conventional",
+    "depth_of_invasion": "reticular_dermis",
+    "high_risk_features": ["none_identified"], "confidence_level": "Medium",
+    "keratinization_present": True, "atypia_level": "moderate",
+    "differential_diagnosis": ["keratoacanthoma",
+                               "pseudoepitheliomatous hyperplasia"],
+    "recommended_ancillary_studies": ["none"],
+    "key_features": ["STUB RESPONSE - no image was read"],
+    "additional_observations": ("STUB RESPONSE. DERMPATH_STUB_API is set, so "
+                                "no API call was made and no image was "
+                                "examined. Not a grade."),
+}
+
+
+def _stub_message(request: dict[str, Any]):
+    """A schema-valid canned response, shaped to the request's schema."""
+    schema = request["output_config"]["format"]["schema"]
+    properties = schema.get("properties", {})
+    payload = dict(_STUB_MELANOCYTIC if "mpath_dx_v2_class" in properties
+                   else _STUB_CSCC)
+    payload["magnification_evidence"] = [
+        {"magnification": m, "finding": "STUB RESPONSE - no image was read"}
+        for m in config.MAGNIFICATIONS]
+    # Fail loudly if the stub drifts from the schema it is standing in for.
+    missing = set(schema.get("required", [])) - set(payload)
+    if missing:
+        raise GradingSchemaError(
+            f"stub response is missing required fields {sorted(missing)}; "
+            f"claude_transport._STUB_* needs updating to match the analyzer "
+            f"schema")
+    text = json.dumps(payload)
+
+    class _StubUsage:
+        input_tokens = 0
+        output_tokens = 0
+        cache_read_input_tokens = 0
+        cache_creation_input_tokens = 0
+
+    class _StubBlock:
+        type = "text"
+
+        def __init__(self, value): self.text = value
+
+    class _StubMessage:
+        id = "msg_stub"
+        model = "stub"
+        stop_reason = "end_turn"
+        stop_details = None
+        usage = _StubUsage()
+
+        def __init__(self, value): self.content = [_StubBlock(value)]
+
+    return _StubMessage(text), text
 
 
 # ── retry policy ─────────────────────────────────────────────────────
@@ -191,6 +289,14 @@ def grade(client: anthropic.Anthropic, request: dict[str, Any],
     propagate unchanged: they are configuration problems, and hiding
     them behind a retry would only delay the diagnosis.
     """
+    if stub_enabled():
+        started = time.time()
+        message, text = _stub_message(request)
+        return GradingResponse(
+            text=text, parsed=json.loads(text), message=message, attempt=1,
+            prior_attempt_errors=[],
+            latency_ms=max(1, int((time.time() - started) * 1000)))
+
     prior_errors: list[str] = []
 
     for attempt in range(1, max_attempts + 1):

@@ -23,6 +23,7 @@ import io
 import json
 import os
 import pathlib
+import urllib.parse
 import zipfile
 
 import streamlit as st
@@ -30,6 +31,7 @@ import streamlit as st
 import claude_transport
 import config
 import credentials
+import image_sources
 import image_utils
 import report
 
@@ -88,27 +90,125 @@ def logs_zip() -> bytes:
     return buffer.getvalue()
 
 
-def magnification_uploaders(key_prefix: str) -> dict[str, bytes]:
-    """One uploader per magnification. Returns magnification -> bytes."""
-    sources: dict[str, bytes] = {}
-    st.caption(
-        f"All {len(config.MAGNIFICATIONS)} magnifications are required. "
-        f"Upload exported tiles, not .svs.")
-    for mag in config.MAGNIFICATIONS:
-        caption = config.MAGNIFICATION_CAPTIONS[mag]
-        uploaded = st.file_uploader(
-            f"{mag} - {caption.split(' - ')[0]}",
-            type=[s.lstrip(".") for s in config.ACCEPTED_IMAGE_SUFFIXES],
-            key=f"{key_prefix}_{mag}",
-            help=caption)
-        if uploaded is not None:
-            error = image_utils.validate_upload(uploaded)
-            if error:
-                st.error(error)
+SAMPLE_CASE_DIR = pathlib.Path("tests/fixtures/sample_case")
+
+
+def _store(key_prefix: str, sources: dict[str, bytes],
+           case_name: str | None = None) -> None:
+    """Persist fetched image bytes, and what to call the case, across reruns.
+
+    The case name becomes the log's case_id. Without it a URL-loaded or
+    sample case logs as "UI-unknown", which makes a directory of logs
+    unreadable.
+    """
+    st.session_state[f"{key_prefix}_sources"] = sources
+    if case_name:
+        st.session_state[f"{key_prefix}_case_name"] = case_name
+
+
+def _stored(key_prefix: str) -> dict[str, bytes]:
+    return st.session_state.get(f"{key_prefix}_sources", {}) or {}
+
+
+def sample_case_available(pathway: str) -> bool:
+    return all((SAMPLE_CASE_DIR / pathway / f"{m}.jpg").exists()
+               for m in config.MAGNIFICATIONS)
+
+
+def load_sample_case(pathway: str) -> dict[str, bytes]:
+    return {m: (SAMPLE_CASE_DIR / pathway / f"{m}.jpg").read_bytes()
+            for m in config.MAGNIFICATIONS}
+
+
+def magnification_inputs(key_prefix: str, pathway: str) -> dict[str, bytes]:
+    """Get the four case images, by upload, by URL, or from the sample case.
+
+    Three routes on purpose. The file uploader is what a researcher uses.
+    The URL and sample-case routes exist so the app can be driven without
+    a native file-picker dialog - by an automated browser test, or by a
+    person who has the images on a server rather than on their laptop.
+    A file dialog is outside the page, so anything driving the browser
+    cannot operate it; a text box and a button it can.
+    """
+    st.caption(f"All {len(config.MAGNIFICATIONS)} magnifications are "
+               f"required: {', '.join(config.MAGNIFICATIONS)}. Tiles, not .svs.")
+
+    mode = st.radio(
+        "Image source", ["Upload files", "Image URLs", "Sample case"],
+        horizontal=True, key=f"{key_prefix}_mode",
+        help="URL and sample-case modes need no file dialog, so an "
+             "automated browser session can drive them.")
+
+    # ── upload ───────────────────────────────────────────────────────
+    if mode == "Upload files":
+        sources = dict(_stored(key_prefix))
+        for mag in config.MAGNIFICATIONS:
+            caption = config.MAGNIFICATION_CAPTIONS[mag]
+            uploaded = st.file_uploader(
+                f"{mag} - {caption.split(' - ')[0]}",
+                type=[s.lstrip(".") for s in config.ACCEPTED_IMAGE_SUFFIXES],
+                key=f"{key_prefix}_{mag}", help=caption)
+            if uploaded is not None:
+                error = image_utils.validate_upload(uploaded)
+                if error:
+                    st.error(error)
+                    sources.pop(mag, None)
+                else:
+                    sources[mag] = uploaded.getvalue()
+                    if mag == config.MAGNIFICATIONS[0]:
+                        st.session_state[f"{key_prefix}_case_name"] = uploaded.name
+        _store(key_prefix, sources)
+        return sources
+
+    # ── URLs ─────────────────────────────────────────────────────────
+    if mode == "Image URLs":
+        st.markdown(
+            f"One https URL per line, in this order: "
+            f"**{', '.join(config.MAGNIFICATIONS)}**")
+        text = st.text_area(
+            "Image URLs", height=140, key=f"{key_prefix}_urls",
+            placeholder="\n".join(
+                f"https://example.org/case/{m}.jpg"
+                for m in config.MAGNIFICATIONS),
+            label_visibility="collapsed")
+        if st.button("Fetch images", key=f"{key_prefix}_fetch"):
+            lines = [ln.strip() for ln in (text or "").splitlines() if ln.strip()]
+            if len(lines) != len(config.MAGNIFICATIONS):
+                st.error(
+                    f"Give exactly {len(config.MAGNIFICATIONS)} URLs, one per "
+                    f"line, in the order {', '.join(config.MAGNIFICATIONS)}. "
+                    f"Got {len(lines)}.")
             else:
-                sources[mag] = uploaded.getvalue()
-                st.session_state[f"{key_prefix}_{mag}_name"] = uploaded.name
-    return sources
+                mapping = dict(zip(config.MAGNIFICATIONS, lines, strict=True))
+                with st.spinner("Fetching..."):
+                    try:
+                        first = pathlib.Path(
+                            urllib.parse.urlparse(lines[0]).path).stem
+                        _store(key_prefix,
+                               image_sources.fetch_case_images(mapping),
+                               case_name=f"url-{first}" if first else "url-case")
+                        st.success(f"Fetched {len(config.MAGNIFICATIONS)} images.")
+                    except image_sources.ImageFetchError as exc:
+                        _store(key_prefix, {})
+                        st.error(str(exc))
+        return _stored(key_prefix)
+
+    # ── bundled sample ───────────────────────────────────────────────
+    if not sample_case_available(pathway):
+        st.warning(f"No bundled sample case for {pathway}.")
+        return _stored(key_prefix)
+
+    st.info(
+        "The sample case is four centre crops of ONE Creative Commons "
+        "histopathology image, standing in for a magnification series. It "
+        "exercises the pipeline end to end. It is **not a real case** and "
+        "any grade it produces is diagnostically meaningless - never put "
+        "one in a results table. See tests/fixtures/sample_case/MANIFEST.json.")
+    if st.button(f"Load {pathway} sample case", key=f"{key_prefix}_sample"):
+        _store(key_prefix, load_sample_case(pathway),
+               case_name=f"sample-{pathway}")
+        st.success("Sample case loaded.")
+    return _stored(key_prefix)
 
 
 def show_prepared(prepared: list) -> None:
@@ -209,7 +309,7 @@ def pathway_tab(pathway: str) -> None:
 
     with left:
         st.header(f"{pathway} case images")
-        sources = magnification_uploaders(prefix)
+        sources = magnification_inputs(prefix, pathway)
 
         missing = [m for m in config.REQUIRED_MAGNIFICATIONS
                    if m not in sources]
@@ -229,10 +329,9 @@ def pathway_tab(pathway: str) -> None:
                      disabled=not ready, key=f"{prefix}_go"):
             with st.spinner(f"Grading {len(prepared)} images..."):
                 try:
-                    first = st.session_state.get(
-                        f"{prefix}_{config.MAGNIFICATIONS[0]}_name",
-                        "unknown")
-                    case_id = "UI-" + pathlib.Path(first).stem.replace(" ", "_")
+                    name = st.session_state.get(f"{prefix}_case_name",
+                                                 "unnamed")
+                    case_id = "UI-" + pathlib.Path(name).stem.replace(" ", "_")
                     replicate = _next_rep(pathway, case_id)
                     logger = CaseLogger(pathway, case_id, replicate,
                                         _manifest_session_id())
@@ -318,6 +417,14 @@ def pathway_tab(pathway: str) -> None:
 
 def main() -> None:
     st.title("Dermatopathology Grading System")
+
+    if claude_transport.stub_enabled():
+        st.error(
+            "**STUB MODE.** `DERMPATH_STUB_API` is set, so no API call is "
+            "made and no image is examined. Every grade below is a fixed "
+            "canned value with no diagnostic meaning. This mode exists for "
+            "automated testing. Unset the variable and reboot for real "
+            "grading.")
     st.caption(
         f"Protocol v{config.PROTOCOL_VERSION} - "
         f"{config.TARGET_N_TOTAL} cases "
